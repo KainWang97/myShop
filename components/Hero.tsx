@@ -14,17 +14,18 @@ const Hero: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 text-center space-y-6 max-w-lg px-6">
+      <div className="relative z-10 text-center space-y-6 max-w-4xl px-6">
         <p className="text-stone-700 tracking-[0.3em] text-xs uppercase animate-fade-in-up">
-          Curated for Life
+          Choose a tasteful life
         </p>
         <h1 className="text-5xl md:text-7xl font-serif text-sumi tracking-widest leading-tight">
-          日常の<br />
-          <span className="text-4xl md:text-6xl block mt-4">美学</span>
+          生活是<br />
+          <span className="text-4xl md:text-6xl block mt-4">你所選</span>
         </h1>
         <div className="w-12 h-[1px] bg-stone-800 mx-auto mt-8"></div>
-        <p className="text-stone-600 font-light text-sm tracking-widest pt-4">
-          Beauty in the ordinary.
+        <p className="text-stone-600 font-light text-sm tracking-widest pt-4 leading-loose">
+          品味也是你所選。<br/>
+          選擇有品味的生活，更好的選擇。
         </p>
       </div>
       

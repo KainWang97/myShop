@@ -14,9 +14,11 @@ export const generateCuratorNote = async (product: Product): Promise<string> => 
 
   try {
     const prompt = `
-      You are a curator for a high-end, minimalist Japanese select shop called "Komorebi".
+      You are a curator for a high-end, minimalist lifestyle shop called "Choose".
+      Brand Philosophy: "Life is what you choose, taste is what you choose. Choose a tasteful life, a better choice."
+      
       Write a short, poetic, and atmospheric product description for the following item.
-      Focus on the sensory experience, the material, and how it fits into a slow, mindful lifestyle.
+      Focus on the sensory experience, the material, and how it represents a conscious choice for a better life.
       Do not be salesy. Be contemplative and calm. Maximum 3 sentences.
 
       Product Name: ${product.name}

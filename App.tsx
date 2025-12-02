@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -78,10 +79,18 @@ const App: React.FC = () => {
 
   // Cart Logic
   const handleAddToCart = (product: Product) => {
-    if ((product.stock || 0) <= 0) return; // Prevent adding if out of stock
+    const stock = product.stock || 0;
+    if (stock <= 0) return; // Prevent adding if out of stock
     
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
+      
+      // Check if adding 1 more exceeds stock
+      if (existing && existing.quantity + 1 > stock) {
+          // Ideally show a toast, but for now we just return current state
+          return prev; 
+      }
+      
       if (existing) {
         return prev.map(item => 
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
@@ -99,8 +108,38 @@ const App: React.FC = () => {
   const handleUpdateQuantity = (id: string, delta: number) => {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
+        // Check stock limit before increasing
+        if (delta > 0) {
+            const product = products.find(p => p.id === id);
+            const stock = product?.stock || 0;
+            if (item.quantity + delta > stock) {
+                return item; // Do not increase
+            }
+        }
+
         const newQty = item.quantity + delta;
         return newQty > 0 ? { ...item, quantity: newQty } : item;
+      }
+      return item;
+    }));
+  };
+
+  const handleSetQuantity = (id: string, quantity: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === id) {
+        const product = products.find(p => p.id === id);
+        const stock = product?.stock || 0;
+        
+        // Ensure strictly positive integer
+        let newQty = Math.floor(quantity);
+        if (isNaN(newQty) || newQty < 1) newQty = 1;
+
+        // Clamp to stock
+        if (stock > 0 && newQty > stock) {
+            newQty = stock;
+        }
+
+        return { ...item, quantity: newQty };
       }
       return item;
     }));
@@ -269,6 +308,7 @@ const App: React.FC = () => {
       {activeProduct && (
         <ProductDetail 
           product={activeProduct} 
+          currentQuantity={cart.find(item => item.id === activeProduct.id)?.quantity || 0}
           onClose={handleCloseProduct}
           onAddToCart={handleAddToCart}
         />
@@ -284,8 +324,10 @@ const App: React.FC = () => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         cartItems={cart}
+        products={products} // Pass global products for real-time stock check
         onRemoveItem={handleRemoveFromCart}
         onUpdateQuantity={handleUpdateQuantity}
+        onSetQuantity={handleSetQuantity}
         onCheckout={handleCheckoutStart}
       />
 

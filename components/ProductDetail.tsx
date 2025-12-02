@@ -1,14 +1,16 @@
+
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { generateCuratorNote } from '../services/geminiService';
 
 interface ProductDetailProps {
   product: Product;
+  currentQuantity: number; // Quantity already in cart
   onClose: () => void;
   onAddToCart: (product: Product) => void;
 }
 
-const ProductDetail: React.FC<ProductDetailProps> = ({ product, onClose, onAddToCart }) => {
+const ProductDetail: React.FC<ProductDetailProps> = ({ product, currentQuantity, onClose, onAddToCart }) => {
   const [curatorNote, setCuratorNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [addedAnimation, setAddedAnimation] = useState(false);
@@ -31,6 +33,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onClose, onAddTo
     setTimeout(() => setAddedAnimation(false), 2000);
   };
 
+  const stock = product.stock || 0;
+  const isSoldOut = stock <= 0;
+  const isMaxReached = currentQuantity >= stock;
+  const canAdd = !isSoldOut && !isMaxReached;
+
   return (
     <div className="fixed inset-0 z-[60] bg-washi overflow-y-auto no-scrollbar animate-fade-in">
       {/* Close Button */}
@@ -51,6 +58,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onClose, onAddTo
             alt={product.name} 
             className="w-full h-full object-cover"
           />
+          {isSoldOut && (
+            <div className="absolute inset-0 bg-stone-900/10 flex items-center justify-center">
+               <span className="bg-sumi text-washi px-6 py-2 text-sm uppercase tracking-widest border border-washi transform -rotate-12">
+                 Sold Out
+               </span>
+            </div>
+          )}
         </div>
 
         {/* Content Section - Right Half */}
@@ -105,18 +119,34 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onClose, onAddTo
               )}
             </div>
 
-            <button 
-              onClick={handleAddToCart}
-              disabled={addedAnimation}
-              className={`w-full py-4 uppercase tracking-[0.2em] text-xs transition-all duration-500 relative overflow-hidden ${
-                addedAnimation ? 'bg-stone-200 text-sumi' : 'bg-sumi text-washi hover:bg-stone-800'
-              }`}
-            >
-              <span className={`relative z-10 ${addedAnimation ? 'opacity-0' : 'opacity-100'}`}>Add to Cart</span>
-              <span className={`absolute inset-0 flex items-center justify-center z-10 transition-opacity duration-300 ${addedAnimation ? 'opacity-100' : 'opacity-0'}`}>
-                Added to Collection
-              </span>
-            </button>
+            <div className="space-y-2">
+              <button 
+                onClick={handleAddToCart}
+                disabled={!canAdd || addedAnimation}
+                className={`w-full py-4 uppercase tracking-[0.2em] text-xs transition-all duration-500 relative overflow-hidden ${
+                  !canAdd 
+                    ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                    : addedAnimation 
+                      ? 'bg-stone-200 text-sumi' 
+                      : 'bg-sumi text-washi hover:bg-stone-800'
+                }`}
+              >
+                <span className={`relative z-10 ${addedAnimation ? 'opacity-0' : 'opacity-100'}`}>
+                  {isSoldOut ? 'Sold Out' : isMaxReached ? 'Max Limit Reached' : 'Add to Cart'}
+                </span>
+                <span className={`absolute inset-0 flex items-center justify-center z-10 transition-opacity duration-300 ${addedAnimation ? 'opacity-100' : 'opacity-0'}`}>
+                  Added to Collection
+                </span>
+              </button>
+
+              {/* Red warning text below button */}
+              {isMaxReached && !isSoldOut && (
+                <p className="text-center text-[10px] text-red-800 uppercase tracking-widest animate-fade-in">
+                  Maximum stock quantity reached ({stock}/{stock})
+                </p>
+              )}
+            </div>
+
           </div>
         </div>
       </div>

@@ -186,9 +186,9 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     
                     <div className="bg-stone-100 p-4 text-xs text-stone-600 space-y-1 font-mono mt-4">
                       <p className="uppercase tracking-widest text-stone-400 mb-2">Bank Details</p>
-                      <p>Bank: Komorebi Bank (808)</p>
+                      <p>Bank: Choose Bank (808)</p>
                       <p>Account: 1234-5678-9012</p>
-                      <p>Name: Komorebi Select Ltd.</p>
+                      <p>Name: Choose Select Ltd.</p>
                     </div>
                   </div>
                 ) : (

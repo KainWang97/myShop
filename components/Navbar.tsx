@@ -36,9 +36,9 @@ const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
         <button 
           onClick={onHome} 
-          className="text-2xl tracking-[0.2em] font-serif text-sumi hover:opacity-70 transition-opacity"
+          className="text-2xl tracking-[0.2em] font-serif text-sumi hover:opacity-70 transition-opacity uppercase"
         >
-          KOMOREBI
+          Choose
         </button>
 
         <div className="flex items-center gap-8 text-sm tracking-widest text-stone-600 font-light">
