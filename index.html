@@ -35,7 +35,6 @@
       h1, h2, h3, h4, h5, h6, .serif {
         font-family: 'Noto Serif JP', serif;
       }
-      /* Hide scrollbar for clean look in modals */
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -44,18 +43,20 @@
         scrollbar-width: none;
       }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js",
+    "@google/genai": "https://esm.run/@google/genai",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
   }
 }
 </script>
-</head>
+  </head>
   <body>
-    <div id="root"></div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
