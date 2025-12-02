@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Choose | Better Choices</title>
+    <!-- Tailwind CSS (CDN for simplicity as per project structure, but standard Vite would usually import CSS) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,18 +44,19 @@
         scrollbar-width: none;
       }
     </style>
-    <script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js",
-    "@google/genai": "https://esm.run/@google/genai",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "vue": "https://aistudiocdn.com/vue@^3.5.25",
+    "@vitejs/plugin-vue": "https://aistudiocdn.com/@vitejs/plugin-vue@^6.0.2"
   }
 }
 </script>
-  </head>
+</head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
