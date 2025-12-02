@@ -1,14 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { Product } from "../types";
 
-// Safe access to environment variable
-const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY || '' : '';
-
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey });
+// The API key is obtained exclusively from the environment variable process.env.API_KEY
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateCuratorNote = async (product: Product): Promise<string> => {
-  if (!apiKey) {
+  if (!process.env.API_KEY) {
     console.warn("API Key is missing.");
     return "The curator is currently away gathering inspiration. (API Key missing)";
   }

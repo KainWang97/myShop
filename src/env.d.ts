@@ -1,10 +1,9 @@
-// Fixed: Cannot find type definition file for 'vite/client'
-// Removed the reference to vite/client as the types are missing in the environment.
-// Added declaration for process to support process.env usage in the application.
+// Augment the NodeJS namespace to include API_KEY in ProcessEnv
+// This avoids redeclaring 'process' which is already defined globally.
 
-declare var process: {
-  env: {
-    API_KEY?: string;
+declare namespace NodeJS {
+  interface ProcessEnv {
+    API_KEY: string;
     [key: string]: string | undefined;
   }
-};
+}
