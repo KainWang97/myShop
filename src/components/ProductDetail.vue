@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import type { Product } from '../types';
-import { generateCuratorNote } from '../services/geminiService';
 
 const props = defineProps<{
   product: Product;
@@ -13,20 +12,11 @@ const emit = defineEmits<{
   (e: 'add-to-cart', product: Product): void;
 }>();
 
-const curatorNote = ref<string | null>(null);
-const loading = ref(false);
 const addedAnimation = ref(false);
 
 onMounted(() => {
   window.scrollTo(0, 0);
 });
-
-const handleAskCurator = async () => {
-  loading.value = true;
-  const note = await generateCuratorNote(props.product);
-  curatorNote.value = note;
-  loading.value = false;
-};
 
 const handleAddToCart = () => {
   emit('add-to-cart', props.product);
@@ -94,28 +84,7 @@ const canAdd = computed(() => !isSoldOut.value && !isMaxReached.value);
             </div>
           </div>
 
-          <!-- Gemini Section -->
-          <div class="bg-stone-100 p-6 border border-stone-200">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="font-serif text-lg text-sumi italic">Curator's Note</h3>
-              <button 
-                 v-if="!curatorNote && !loading"
-                 @click="handleAskCurator"
-                 class="text-xs uppercase tracking-widest border-b border-stone-800 hover:text-stone-500 hover:border-stone-500 transition-colors pb-0.5"
-               >
-                 Reveal Story
-               </button>
-            </div>
-            
-            <div v-if="loading" class="flex space-x-1 items-center h-12">
-              <div class="w-1 h-1 bg-stone-400 rounded-full animate-bounce delay-75"></div>
-              <div class="w-1 h-1 bg-stone-400 rounded-full animate-bounce delay-100"></div>
-              <div class="w-1 h-1 bg-stone-400 rounded-full animate-bounce delay-150"></div>
-            </div>
-            <p v-else class="text-sm italic text-stone-600 transition-opacity duration-1000" :class="curatorNote ? 'opacity-100' : 'opacity-0 h-0'">
-              {{ curatorNote }}
-            </p>
-          </div>
+
 
           <div class="space-y-2">
             <button 

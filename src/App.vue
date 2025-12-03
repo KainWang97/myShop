@@ -18,6 +18,7 @@ import Footer from './components/Footer.vue';
 
 // Navigation State
 const currentView = ref<PageView>('HOME');
+const postLoginRedirect = ref<PageView | null>(null);
 
 // App Data State
 const products = ref<Product[]>(PRODUCTS);
@@ -37,6 +38,12 @@ const user = ref<User | null>(null);
 
 // Seasonal Products
 const seasonalProducts = computed(() => SEASONAL_INDICES.map(index => products.value[index]));
+
+const contactSection = ref<InstanceType<typeof ContactSection> | null>(null);
+
+const onContactClick = () => {
+  contactSection.value?.$el.scrollIntoView({ behavior: 'smooth' });
+};
 
 // Scroll Detection
 const handleScroll = () => {
@@ -135,11 +142,13 @@ const handleSetQuantity = (id: string, quantity: number) => {
 
 const handleCheckoutStart = () => {
   if (!user.value) {
+    postLoginRedirect.value = 'CHECKOUT';
     isCartOpen.value = false;
     isAuthOpen.value = true;
     return;
   }
   isCartOpen.value = false;
+  handleCloseProduct(); // This will set activeProduct to null
   currentView.value = 'CHECKOUT';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -178,10 +187,25 @@ const handlePlaceOrder = (shippingDetails: ShippingDetails) => {
 };
 
 // Auth Logic
+const handleAuthClose = () => {
+  isAuthOpen.value = false;
+  postLoginRedirect.value = null;
+};
+
 const handleLogin = (loggedInUser: User) => {
   user.value = loggedInUser;
+  isAuthOpen.value = false; // Close modal on successful login
+
   if (loggedInUser.role === 'ADMIN') {
     currentView.value = 'ADMIN_DASHBOARD';
+    postLoginRedirect.value = null; // Always clear redirect for admin
+    return;
+  }
+
+  // If a redirect was planned (e.g., to checkout), execute it
+  if (postLoginRedirect.value) {
+    currentView.value = postLoginRedirect.value;
+    postLoginRedirect.value = null; // Reset redirect state after using it
   }
 };
 
@@ -246,7 +270,7 @@ const getActiveProductQuantity = computed(() => {
       @open-admin="handleAdminDashboardClick"
       @home="handleHomeClick"
       @collection="handleCollectionClick"
-      @contact="() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })"
+      @contact="onContactClick"
     />
 
     <main>
@@ -288,6 +312,7 @@ const getActiveProductQuantity = computed(() => {
       
       <!-- Contact Form -->
       <ContactSection 
+        ref="contactSection"
         v-if="currentView !== 'CHECKOUT' && currentView !== 'ADMIN_DASHBOARD'" 
         @submit="handleSubmitInquiry" 
       />
@@ -306,7 +331,7 @@ const getActiveProductQuantity = computed(() => {
 
     <AuthModal 
       :isOpen="isAuthOpen" 
-      @close="isAuthOpen = false" 
+      @close="handleAuthClose" 
       @login="handleLogin"
     />
 
