@@ -15,7 +15,7 @@ export interface User {
   email: string;
   name: string;
   orders: Order[];
-  role?: 'USER' | 'ADMIN';
+  role?: "USER" | "ADMIN";
 }
 
 export interface Inquiry {
@@ -24,16 +24,16 @@ export interface Inquiry {
   email: string;
   message: string;
   date: string;
-  status: 'PENDING' | 'REPLIED';
+  status: "PENDING" | "REPLIED";
 }
 
 export interface CartItem extends Product {
   quantity: number;
 }
 
-export type OrderStatus = 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+export type OrderStatus = "Processing" | "Shipped" | "Delivered" | "Cancelled";
 
-export type PaymentMethod = 'BANK_TRANSFER' | 'STORE_PICKUP';
+export type PaymentMethod = "BANK_TRANSFER" | "STORE_PICKUP";
 
 export interface ShippingDetails {
   fullName: string;
@@ -41,7 +41,7 @@ export interface ShippingDetails {
   email: string;
   method: PaymentMethod;
   address?: string; // For Bank Transfer
-  city?: string;    // For Bank Transfer
+  city?: string; // For Bank Transfer
   storeCode?: string; // For Store Pickup
   storeName?: string; // For Store Pickup
 }
@@ -53,6 +53,13 @@ export interface Order {
   total: number;
   status: OrderStatus;
   shippingDetails?: ShippingDetails;
+  paymentNote?: string; // 使用者填寫的付款備註（匯款資訊、時間等）
 }
 
-export type PageView = 'HOME' | 'COLLECTION' | 'CHECKOUT' | 'ADMIN_DASHBOARD';
+export type PageView =
+  | "HOME"
+  | "COLLECTION"
+  | "PRODUCT_DETAIL"
+  | "CONTACT"
+  | "CHECKOUT"
+  | "ADMIN_DASHBOARD";
