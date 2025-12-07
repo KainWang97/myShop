@@ -27,6 +27,11 @@ import UserDashboard from "./components/UserDashboard.vue";
 import CheckoutPage from "./components/CheckoutPage.vue";
 import AdminDashboard from "./components/AdminDashboard.vue";
 import Footer from "./components/Footer.vue";
+import ConfirmModal from "./components/ConfirmModal.vue";
+import { useConfirm } from "./composables/useConfirm";
+
+// Confirm Modal
+const { state: confirmState, handleConfirm, handleCancel } = useConfirm();
 
 // Navigation State
 const currentView = ref<PageView>("HOME");
@@ -623,6 +628,18 @@ const handleDeleteCategory = async (id: string) => {
       @close="isDashboardOpen = false"
       @logout="handleLogout"
       @update-payment-note="handleUpdatePaymentNote"
+    />
+
+    <!-- Global Confirm Modal -->
+    <ConfirmModal
+      :isOpen="confirmState.isOpen"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :confirmText="confirmState.confirmText"
+      :cancelText="confirmState.cancelText"
+      :variant="confirmState.variant"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
     />
   </div>
 </template>

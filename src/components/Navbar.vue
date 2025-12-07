@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { User, CartItem } from "../types";
+import { useConfirm } from "../composables/useConfirm";
 
 const props = defineProps<{
   isScrolled: boolean;
@@ -19,16 +20,26 @@ const emit = defineEmits<{
   (e: "logout"): void;
 }>();
 
+const { confirm } = useConfirm();
 const isLoggingOut = ref(false);
 
 const handleLogout = async () => {
-  if (confirm("Are you sure you want to log out?")) {
-    isLoggingOut.value = true;
-    // Minimize delay for better UX, just enough to show action
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  const confirmed = await confirm({
+    title: "登出確認",
+    message: "確定要登出嗎？",
+    confirmText: "登出",
+    cancelText: "取消",
+    variant: "warning",
+  });
+
+  if (!confirmed) return;
+
+  isLoggingOut.value = true;
+  // Minimize delay for better UX, just enough to show action
+  setTimeout(() => {
     emit("logout");
     isLoggingOut.value = false;
-  }
+  }, 800);
 };
 
 const cartCount = computed(() =>

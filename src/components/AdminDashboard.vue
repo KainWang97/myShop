@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import type {
   Product,
   ProductVariant,
@@ -8,6 +8,9 @@ import type {
   OrderStatus,
   Category,
 } from "../types";
+import { useConfirm } from "../composables/useConfirm";
+
+const { confirm } = useConfirm();
 
 const props = defineProps<{
   products: Product[];
@@ -76,6 +79,16 @@ const previewUrl = ref<string | null>(null);
 const isVariantFormOpen = ref(false);
 const editingVariantId = ref<string | null>(null);
 const currentProductForVariant = ref<Product | null>(null);
+const isVariantSubmitting = ref(false);
+
+const activeVariantProduct = computed(() => {
+  if (!currentProductForVariant.value) return null;
+  return (
+    props.products.find((p) => p.id === currentProductForVariant.value?.id) ||
+    currentProductForVariant.value
+  );
+});
+
 const variantFormData = ref({
   color: "",
   size: "",
@@ -146,12 +159,15 @@ const submitCategoryForm = async () => {
 };
 
 const confirmDeleteCategory = async (category: Category) => {
-  if (confirm(`確定要刪除分類 "${category.name}" 嗎？`)) {
-    try {
-      await emit("delete-category", category.id);
-    } catch (error) {
-      console.error("Failed to delete category:", error);
-    }
+  const confirmed = await confirm({
+    title: "刪除分類",
+    message: `確定要刪除分類 "${category.name}" 嗎？`,
+    confirmText: "刪除",
+    cancelText: "取消",
+    variant: "danger",
+  });
+  if (confirmed) {
+    emit("delete-category", category.id);
   }
 };
 
@@ -261,12 +277,15 @@ const submitForm = async () => {
 };
 
 const confirmDelete = async (product: Product) => {
-  if (confirm(`確定要刪除 "${product.name}" 嗎？此操作無法復原。`)) {
-    try {
-      await emit("delete-product", product.id);
-    } catch (error) {
-      console.error("Failed to delete:", error);
-    }
+  const confirmed = await confirm({
+    title: "刪除商品",
+    message: `確定要刪除 "${product.name}" 嗎？此操作無法復原。`,
+    confirmText: "刪除",
+    cancelText: "取消",
+    variant: "danger",
+  });
+  if (confirmed) {
+    emit("delete-product", product.id);
   }
 };
 
@@ -302,33 +321,49 @@ const cancelEditVariant = () => {
 
 const submitVariantForm = async () => {
   if (!currentProductForVariant.value) return;
+  isVariantSubmitting.value = true;
+
+  // 記錄開始時間，確保載入動畫至少顯示 800ms
+  const startTime = Date.now();
+  const MIN_LOADING_TIME = 800;
+
   try {
     if (editingVariantId.value) {
-      await emit(
-        "update-variant",
-        editingVariantId.value,
-        variantFormData.value
-      );
+      emit("update-variant", editingVariantId.value, variantFormData.value);
     } else {
-      await emit(
+      emit(
         "create-variant",
         currentProductForVariant.value.id,
         variantFormData.value
       );
     }
+
+    // 等待最小載入時間
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_LOADING_TIME) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, MIN_LOADING_TIME - elapsed)
+      );
+    }
+
     cancelEditVariant();
   } catch (error) {
     console.error("Failed to save variant:", error);
+  } finally {
+    isVariantSubmitting.value = false;
   }
 };
 
 const confirmDeleteVariant = async (variant: ProductVariant) => {
-  if (confirm(`確定要刪除規格 "${variant.color} / ${variant.size}" 嗎？`)) {
-    try {
-      await emit("delete-variant", variant.id);
-    } catch (error) {
-      console.error("Failed to delete variant:", error);
-    }
+  const confirmed = await confirm({
+    title: "刪除規格",
+    message: `確定要刪除規格 "${variant.color} / ${variant.size}" 嗎？`,
+    confirmText: "刪除",
+    cancelText: "取消",
+    variant: "danger",
+  });
+  if (confirmed) {
+    emit("delete-variant", variant.id);
   }
 };
 
@@ -945,7 +980,7 @@ const getOrderItemsText = (order: Order): string => {
           <div>
             <h2 class="font-serif text-2xl text-sumi">規格管理</h2>
             <p class="text-sm text-stone-500 mt-1">
-              {{ currentProductForVariant.name }}
+              {{ activeVariantProduct?.name }}
             </p>
           </div>
           <button
@@ -975,7 +1010,7 @@ const getOrderItemsText = (order: Order): string => {
             </thead>
             <tbody class="text-sm">
               <tr
-                v-for="variant in currentProductForVariant.variants"
+                v-for="variant in activeVariantProduct?.variants"
                 :key="variant.id"
                 class="border-b border-stone-50"
               >
@@ -1005,7 +1040,7 @@ const getOrderItemsText = (order: Order): string => {
                       Edit
                     </button>
                     <button
-                      @click="confirmDeleteVariant(variant)"
+                      @click.stop="confirmDeleteVariant(variant)"
                       class="px-2 py-1 text-xs border border-red-300 text-red-600 hover:bg-red-50"
                     >
                       Delete
@@ -1013,7 +1048,33 @@ const getOrderItemsText = (order: Order): string => {
                   </div>
                 </td>
               </tr>
-              <tr v-if="!currentProductForVariant.variants?.length">
+              <!-- Loading Row -->
+              <tr
+                v-if="isVariantSubmitting"
+                class="border-b border-stone-50 bg-stone-50/50"
+              >
+                <td class="py-3 font-mono text-xs text-stone-400 italic">
+                  Generating...
+                </td>
+                <td class="py-3 text-stone-400">{{ variantFormData.color }}</td>
+                <td class="py-3 text-stone-400">{{ variantFormData.size }}</td>
+                <td class="py-3">
+                  <span class="px-2 py-1 bg-stone-100 text-stone-400">
+                    {{ variantFormData.stock }}
+                  </span>
+                </td>
+                <td class="py-3">
+                  <div
+                    class="w-4 h-4 border-2 border-sumi border-t-transparent rounded-full animate-spin"
+                  ></div>
+                </td>
+              </tr>
+              <tr
+                v-if="
+                  !activeVariantProduct?.variants?.length &&
+                  !isVariantSubmitting
+                "
+              >
                 <td colspan="5" class="py-4 text-center text-stone-400 italic">
                   尚無規格，請新增
                 </td>
@@ -1061,9 +1122,22 @@ const getOrderItemsText = (order: Order): string => {
             </div>
             <button
               type="submit"
-              class="px-4 py-2 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800"
+              :disabled="isVariantSubmitting"
+              class="px-4 py-2 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800 disabled:opacity-70 flex items-center gap-2"
             >
-              {{ editingVariantId ? "Update" : "+ Add" }}
+              <div
+                v-if="isVariantSubmitting"
+                class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+              ></div>
+              <span>
+                {{
+                  isVariantSubmitting
+                    ? "Processing..."
+                    : editingVariantId
+                    ? "Update"
+                    : "+ Add"
+                }}
+              </span>
             </button>
             <button
               v-if="editingVariantId"
