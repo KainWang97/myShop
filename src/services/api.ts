@@ -14,8 +14,14 @@ import type {
   OrderStatus,
   Category,
   CartItem,
+  User,
 } from "../types";
-import { PRODUCTS, MOCK_CATEGORIES, MOCK_VARIANTS } from "../constants";
+import {
+  PRODUCTS,
+  MOCK_CATEGORIES,
+  MOCK_VARIANTS,
+  MOCK_USERS,
+} from "../constants";
 
 // ============================================
 // 模擬網路延遲 (未來移除)
@@ -391,6 +397,69 @@ export const inquiryApi = {
 };
 
 // ============================================
+// Auth API
+// ============================================
+export const authApi = {
+  /**
+   * 使用者登入
+   * POST /api/auth/login
+   */
+  async login(data: { email: string; password: string }): Promise<User> {
+    await simulateDelay(500);
+
+    // 模擬後端驗證邏輯
+    const user = MOCK_USERS.find(
+      (u) => u.email.toLowerCase() === data.email.toLowerCase()
+    );
+
+    if (!user || user.password !== data.password) {
+      throw new Error("Invalid credentials");
+    }
+
+    // 回傳不包含密碼的 User 物件
+    const { password, ...userWithoutPassword } = user;
+    return {
+      ...userWithoutPassword,
+      orders: [], // 模擬從 DB 載入訂單
+    };
+  },
+
+  /**
+   * 註冊新會員
+   * POST /api/auth/register
+   */
+  async register(data: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<User> {
+    await simulateDelay(800);
+
+    // 模擬後端檢查 Email 是否存在
+    const existingUser = MOCK_USERS.find(
+      (u) => u.email.toLowerCase() === data.email.toLowerCase()
+    );
+
+    if (existingUser) {
+      throw new Error("Email already registered");
+    }
+
+    // 模擬建立新用戶
+    const newUser: User = {
+      id: Date.now().toString(),
+      email: data.email,
+      name: data.name,
+      role: "MEMBER",
+      orders: [],
+    };
+
+    // 注意：在 Mock 模式下，新註冊用戶無法持久化到 MOCK_USERS 常數中
+    // 這裡只回傳成功建立的用戶物件
+    return newUser;
+  },
+};
+
+// ============================================
 // Category API
 // ============================================
 export const categoryApi = {
@@ -465,6 +534,7 @@ export const api = {
   orders: orderApi,
   inquiries: inquiryApi,
   categories: categoryApi,
+  auth: authApi,
 };
 
 export default api;

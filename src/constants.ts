@@ -1,8 +1,29 @@
-import type { Product, ProductVariant, Category } from "./types";
+import type { Product, ProductVariant, Category, MockUser } from "./types";
+
+// ============================================
+// Mock Users (對應 SQL users)
+// ============================================
+export const MOCK_USERS: MockUser[] = [
+  {
+    id: "1",
+    email: "admin@komorebi.com",
+    password: "admin",
+    name: "Admin",
+    phone: "0912-345-678",
+    role: "ADMIN",
+  },
+  {
+    id: "2",
+    email: "test@test.com",
+    password: "test123",
+    name: "測試會員",
+    phone: "0987-654-321",
+    role: "MEMBER",
+  },
+];
 
 // ============================================
 // Mock Categories (對應 SQL categories)
-// ============================================
 export const MOCK_CATEGORIES: Category[] = [
   {
     id: "1",

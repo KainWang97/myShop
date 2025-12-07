@@ -48,6 +48,16 @@ export interface User {
   orders: Order[];
 }
 
+// Mock User for authentication (includes password for frontend simulation)
+export interface MockUser {
+  id: string;
+  email: string;
+  password: string; // Plain text for mock only, real backend should hash
+  name: string;
+  phone?: string;
+  role: "MEMBER" | "ADMIN";
+}
+
 // ============================================
 // Inquiry (對應 SQL: contact_messages)
 // ============================================

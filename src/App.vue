@@ -92,13 +92,7 @@ onMounted(async () => {
     inquiries.value = inquiriesData;
     categories.value = categoriesData;
 
-    // Default Login as Admin for Testing
-    user.value = {
-      name: "Admin",
-      email: "admin@komorebi.com",
-      orders: [],
-      role: "ADMIN",
-    };
+    // No auto-login - users must login manually now
   } catch (error) {
     console.error("Failed to load data:", error);
     loadError.value = "載入資料失敗，請重新整理頁面";
