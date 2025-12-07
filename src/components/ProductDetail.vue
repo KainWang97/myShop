@@ -215,10 +215,8 @@ const handleAddToCart = () => {
 
                 <!-- Selected Variant Info -->
                 <div v-if="selectedVariant" class="text-xs text-stone-500 pt-2">
-                  <span>SKU: {{ selectedVariant.skuCode }}</span>
-                  <span class="mx-2">|</span>
-                  <span :class="stock < 5 ? 'text-red-600' : ''">
-                    庫存：{{ stock }}
+                  <span :class="stock < 5 ? 'text-red-500' : 'hidden'">
+                    僅剩{{ stock }}件
                   </span>
                 </div>
               </template>
@@ -248,7 +246,7 @@ const handleAddToCart = () => {
                       : isSoldOut
                       ? "Sold Out"
                       : isMaxReached
-                      ? "Max Limit Reached"
+                      ? "庫存不足"
                       : "Add to Cart"
                   }}
                 </span>
@@ -260,12 +258,12 @@ const handleAddToCart = () => {
                 </span>
               </button>
 
-              <p
+              <!-- <p
                 v-if="isMaxReached && !isSoldOut && selectedVariant"
                 class="text-center text-[10px] text-red-800 uppercase tracking-widest animate-fade-in"
               >
-                Maximum stock quantity reached ({{ currentQty }}/{{ stock }})
-              </p>
+                庫存不足 ({{ currentQty }}/{{ stock }})
+              </p> -->
             </div>
           </div>
         </div>
