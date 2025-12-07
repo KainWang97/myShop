@@ -10,6 +10,7 @@ import type {
   Inquiry,
   ShippingDetails,
   OrderStatus,
+  Category,
 } from "../types";
 import { PRODUCTS, CATEGORIES } from "../constants";
 
@@ -23,6 +24,12 @@ const simulateDelay = (ms: number = 300): Promise<void> =>
 // 模擬資料儲存 (未來由後端資料庫取代)
 // ============================================
 let mockProducts: Product[] = [...PRODUCTS];
+let mockCategories: Category[] = CATEGORIES.map((name, index) => ({
+  id: index.toString(),
+  name,
+  description: "",
+  createdAt: new Date().toISOString(),
+}));
 let mockOrders: Order[] = [];
 let mockInquiries: Inquiry[] = [];
 
@@ -358,10 +365,65 @@ export const inquiryApi = {
 // ============================================
 // 統一匯出
 // ============================================
+export const categoryApi = {
+  /**
+   * 取得所有分類 (Admin)
+   * GET /api/categories
+   */
+  async getAll(): Promise<Category[]> {
+    await simulateDelay(300);
+    return [...mockCategories];
+  },
+
+  /**
+   * 新增分類 (Admin)
+   * POST /api/categories
+   */
+  async create(data: Omit<Category, "id">): Promise<Category> {
+    await simulateDelay(500);
+    const newCategory: Category = {
+      id: Date.now().toString(),
+      ...data,
+      createdAt: new Date().toISOString(),
+    };
+    mockCategories.push(newCategory);
+    return newCategory;
+  },
+
+  /**
+   * 更新分類 (Admin)
+   * PUT /api/categories/:id
+   */
+  async update(id: string, data: Partial<Category>): Promise<Category | null> {
+    await simulateDelay(400);
+    const index = mockCategories.findIndex((c) => c.id === id);
+    if (index !== -1) {
+      mockCategories[index] = { ...mockCategories[index], ...data };
+      return mockCategories[index];
+    }
+    return null;
+  },
+
+  /**
+   * 刪除分類 (Admin)
+   * DELETE /api/categories/:id
+   */
+  async delete(id: string): Promise<boolean> {
+    await simulateDelay(300);
+    const index = mockCategories.findIndex((c) => c.id === id);
+    if (index !== -1) {
+      mockCategories.splice(index, 1);
+      return true;
+    }
+    return false;
+  },
+};
+
 export const api = {
   products: productApi,
   orders: orderApi,
   inquiries: inquiryApi,
+  categories: categoryApi,
 };
 
 export default api;

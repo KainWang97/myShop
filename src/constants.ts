@@ -83,7 +83,6 @@ export const PRODUCTS: Product[] = [
 ];
 
 export const CATEGORIES = [
-  "All",
   "Tea Ritual",
   "Apparel",
   "Home Decor",

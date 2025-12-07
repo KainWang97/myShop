@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import type { Product, Order, Inquiry, OrderStatus } from "../types";
+import type { Product, Order, Inquiry, OrderStatus, Category } from "../types";
 
 const props = defineProps<{
   products: Product[];
+  categories: Category[];
   orders: Order[];
   inquiries: Inquiry[];
 }>();
@@ -19,9 +20,14 @@ const emit = defineEmits<{
   ): Promise<Product | null>;
   (e: "delete-product", id: string): Promise<boolean>;
   (e: "upload-image", file: File): Promise<string>;
+  (e: "create-category", data: Omit<Category, "id">): Promise<void>;
+  (e: "update-category", id: string, data: Partial<Category>): Promise<void>;
+  (e: "delete-category", id: string): Promise<void>;
 }>();
 
-const activeTab = ref<"INVENTORY" | "ORDERS" | "INQUIRIES">("INVENTORY");
+const activeTab = ref<"INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES">(
+  "INVENTORY"
+);
 
 // Form State
 const isFormOpen = ref(false);
@@ -44,19 +50,64 @@ const uploadError = ref(false);
 const pendingFile = ref<File | null>(null);
 const previewUrl = ref<string | null>(null);
 
-// Categories for dropdown
-const categories = computed(() => {
-  const cats = new Set(props.products.map((p) => p.category));
-  return [
-    "Tea Ritual",
-    "Apparel",
-    "Home Decor",
-    "Bath",
-    "Accessories",
-    "Kitchen",
-    ...cats,
-  ];
+// Category Form State
+const isCategoryFormOpen = ref(false);
+const editingCategoryId = ref<string | null>(null);
+const categoryFormData = ref({
+  name: "",
+  description: "",
 });
+
+// Category CRUD Handlers
+const openNewCategoryForm = () => {
+  editingCategoryId.value = null;
+  categoryFormData.value = {
+    name: "",
+    description: "",
+  };
+  isCategoryFormOpen.value = true;
+};
+
+const openEditCategoryForm = (category: Category) => {
+  editingCategoryId.value = category.id;
+  categoryFormData.value = {
+    name: category.name,
+    description: category.description || "",
+  };
+  isCategoryFormOpen.value = true;
+};
+
+const closeCategoryForm = () => {
+  isCategoryFormOpen.value = false;
+  editingCategoryId.value = null;
+};
+
+const submitCategoryForm = async () => {
+  try {
+    if (editingCategoryId.value) {
+      await emit(
+        "update-category",
+        editingCategoryId.value,
+        categoryFormData.value
+      );
+    } else {
+      await emit("create-category", categoryFormData.value);
+    }
+    closeCategoryForm();
+  } catch (error) {
+    console.error("Failed to save category:", error);
+  }
+};
+
+const confirmDeleteCategory = async (category: Category) => {
+  if (confirm(`確定要刪除分類 "${category.name}" 嗎？`)) {
+    try {
+      await emit("delete-category", category.id);
+    } catch (error) {
+      console.error("Failed to delete category:", error);
+    }
+  }
+};
 
 // Open form for new product
 const openNewProductForm = () => {
@@ -64,7 +115,7 @@ const openNewProductForm = () => {
   formData.value = {
     name: "",
     price: 0,
-    category: categories.value[0] || "",
+    category: props.categories[0]?.name || "",
     shortDescription: "",
     details: "",
     material: "",
@@ -194,7 +245,7 @@ const confirmDelete = async (product: Product) => {
         </div>
         <div class="flex gap-1 bg-white p-1 rounded-sm border border-stone-200">
           <button
-            v-for="tab in ['INVENTORY', 'ORDERS', 'INQUIRIES']"
+            v-for="tab in ['INVENTORY', 'CATEGORIES', 'ORDERS', 'INQUIRIES']"
             :key="tab"
             @click="activeTab = tab as any"
             class="px-6 py-2 text-xs uppercase tracking-widest transition-all"
@@ -291,6 +342,63 @@ const confirmDelete = async (product: Product) => {
                       </button>
                       <button
                         @click="confirmDelete(product)"
+                        class="px-3 py-1 text-xs border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Categories Tab -->
+        <div v-if="activeTab === 'CATEGORIES'" class="space-y-6">
+          <div
+            class="flex justify-between items-center border-b border-stone-100 pb-4"
+          >
+            <h2 class="font-serif text-xl text-sumi">Categories</h2>
+            <button
+              @click="openNewCategoryForm"
+              class="px-6 py-2 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800 transition-colors"
+            >
+              + New Category
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200"
+                >
+                  <th class="pb-4 font-normal">Name</th>
+                  <th class="pb-4 font-normal">Description</th>
+                  <th class="pb-4 font-normal">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="text-sm font-light text-stone-600">
+                <tr
+                  v-for="category in categories"
+                  :key="category.id"
+                  class="border-b border-stone-50 hover:bg-stone-50/50"
+                >
+                  <td class="py-4 font-medium text-sumi">
+                    {{ category.name }}
+                  </td>
+                  <td class="py-4">{{ category.description }}</td>
+                  <td class="py-4">
+                    <div class="flex items-center gap-2">
+                      <button
+                        @click="openEditCategoryForm(category)"
+                        class="px-3 py-1 text-xs border border-stone-300 hover:bg-stone-100 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        @click="confirmDeleteCategory(category)"
                         class="px-3 py-1 text-xs border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
                       >
                         Delete
@@ -444,6 +552,69 @@ const confirmDelete = async (product: Product) => {
       </div>
     </div>
 
+    <!-- Category Form Modal -->
+    <div
+      v-if="isCategoryFormOpen"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      @click.self="closeCategoryForm"
+    >
+      <div class="bg-white max-w-md w-full p-8 shadow-xl">
+        <div class="flex justify-between items-center mb-8">
+          <h2 class="font-serif text-2xl text-sumi">
+            {{ editingCategoryId ? "Edit Category" : "New Category" }}
+          </h2>
+          <button
+            @click="closeCategoryForm"
+            class="text-stone-400 hover:text-sumi text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+
+        <form @submit.prevent="submitCategoryForm" class="space-y-6">
+          <div class="space-y-2">
+            <label
+              class="block text-xs uppercase tracking-widest text-stone-500"
+              >Name *</label
+            >
+            <input
+              v-model="categoryFormData.name"
+              required
+              class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <label
+              class="block text-xs uppercase tracking-widest text-stone-500"
+              >Description</label
+            >
+            <textarea
+              v-model="categoryFormData.description"
+              rows="3"
+              class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi resize-none"
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end gap-4 pt-4 border-t border-stone-200">
+            <button
+              type="button"
+              @click="closeCategoryForm"
+              class="px-6 py-3 border border-stone-300 text-stone-600 text-xs uppercase tracking-widest hover:bg-stone-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-6 py-3 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Product Form Modal -->
     <div
       v-if="isFormOpen"
@@ -573,8 +744,12 @@ const confirmDelete = async (product: Product) => {
                 required
                 class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi bg-white"
               >
-                <option v-for="cat in categories" :key="cat" :value="cat">
-                  {{ cat }}
+                <option
+                  v-for="cat in categories"
+                  :key="cat.id"
+                  :value="cat.name"
+                >
+                  {{ cat.name }}
                 </option>
               </select>
             </div>

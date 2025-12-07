@@ -11,6 +11,7 @@ import type {
   PageView,
   Inquiry,
   OrderStatus,
+  Category,
 } from "./types";
 
 import Navbar from "./components/Navbar.vue";
@@ -33,6 +34,7 @@ const postLoginRedirect = ref<PageView | null>(null);
 
 // App Data State
 const products = ref<Product[]>([]);
+const categories = ref<Category[]>([]);
 const inquiries = ref<Inquiry[]>([]);
 const allOrders = ref<Order[]>([]);
 
@@ -73,15 +75,26 @@ onMounted(async () => {
     loadError.value = null;
 
     // 並行載入所有資料
-    const [productsData, ordersData, inquiriesData] = await Promise.all([
-      api.products.getAll(),
-      api.orders.getAll(),
-      api.inquiries.getAll(),
-    ]);
+    const [productsData, ordersData, inquiriesData, categoriesData] =
+      await Promise.all([
+        api.products.getAll(),
+        api.orders.getAll(),
+        api.inquiries.getAll(),
+        api.categories.getAll(),
+      ]);
 
     products.value = productsData;
     allOrders.value = ordersData;
     inquiries.value = inquiriesData;
+    categories.value = categoriesData;
+
+    // Default Login as Admin for Testing
+    user.value = {
+      name: "Admin",
+      email: "admin@komorebi.com",
+      orders: [],
+      role: "ADMIN",
+    };
   } catch (error) {
     console.error("Failed to load data:", error);
     loadError.value = "載入資料失敗，請重新整理頁面";
@@ -371,7 +384,6 @@ const handleUploadImage = async (file: File): Promise<string> => {
   }
 };
 
-// Order Payment Note Handler
 const handleUpdatePaymentNote = async (orderId: string, note: string) => {
   try {
     await api.orders.updatePaymentNote(orderId, note);
@@ -388,6 +400,47 @@ const handleUpdatePaymentNote = async (orderId: string, note: string) => {
     }
   } catch (error) {
     console.error("Failed to update payment note:", error);
+    throw error;
+  }
+};
+
+// Category CRUD Handlers
+const handleCreateCategory = async (categoryData: Omit<Category, "id">) => {
+  try {
+    const newCategory = await api.categories.create(categoryData);
+    categories.value.push(newCategory);
+  } catch (error) {
+    console.error("Failed to create category:", error);
+    throw error;
+  }
+};
+
+const handleUpdateCategory = async (
+  id: string,
+  categoryData: Partial<Category>
+) => {
+  try {
+    const updated = await api.categories.update(id, categoryData);
+    if (updated) {
+      const index = categories.value.findIndex((c) => c.id === id);
+      if (index !== -1) {
+        categories.value[index] = updated;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to update category:", error);
+    throw error;
+  }
+};
+
+const handleDeleteCategory = async (id: string) => {
+  try {
+    const success = await api.categories.delete(id);
+    if (success) {
+      categories.value = categories.value.filter((c) => c.id !== id);
+    }
+  } catch (error) {
+    console.error("Failed to delete category:", error);
     throw error;
   }
 };
@@ -414,6 +467,7 @@ const getActiveProductQuantity = computed(() => {
       @home="handleHomeClick"
       @collection="handleCollectionClick"
       @contact="handleContactClick"
+      @logout="handleLogout"
     />
 
     <main class="flex-grow pt-[89px]">
@@ -450,6 +504,7 @@ const getActiveProductQuantity = computed(() => {
       <div v-if="currentView === 'ADMIN_DASHBOARD'">
         <AdminDashboard
           :products="products"
+          :categories="categories"
           :orders="allOrders"
           :inquiries="inquiries"
           @update-order-status="handleUpdateOrderStatus"
@@ -458,6 +513,9 @@ const getActiveProductQuantity = computed(() => {
           @update-product="handleUpdateProduct"
           @delete-product="handleDeleteProduct"
           @upload-image="handleUploadImage"
+          @create-category="handleCreateCategory"
+          @update-category="handleUpdateCategory"
+          @delete-category="handleDeleteCategory"
         />
       </div>
 
@@ -471,7 +529,11 @@ const getActiveProductQuantity = computed(() => {
       </div>
 
       <div v-if="currentView === 'CONTACT'">
-        <ContactSection @submit="handleSubmitInquiry" />
+        <ContactSection
+          :initialName="user?.name"
+          :initialEmail="user?.email"
+          @submit="handleSubmitInquiry"
+        />
       </div>
     </main>
 

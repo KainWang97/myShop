@@ -11,6 +11,13 @@ export interface Product {
   stock?: number;
 }
 
+export interface Category {
+  id: string; // 對應 category_id
+  name: string;
+  description?: string;
+  createdAt?: string;
+}
+
 export interface User {
   email: string;
   name: string;
