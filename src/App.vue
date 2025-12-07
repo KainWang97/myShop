@@ -4,6 +4,7 @@ import { SEASONAL_INDICES } from "./constants";
 import { api } from "./services/api";
 import type {
   Product,
+  ProductVariant,
   User,
   CartItem,
   Order,
@@ -29,7 +30,7 @@ import Footer from "./components/Footer.vue";
 
 // Navigation State
 const currentView = ref<PageView>("HOME");
-const previousView = ref<PageView>("HOME"); // Track where user came from
+const previousView = ref<PageView>("HOME");
 const postLoginRedirect = ref<PageView | null>(null);
 
 // App Data State
@@ -38,7 +39,7 @@ const categories = ref<Category[]>([]);
 const inquiries = ref<Inquiry[]>([]);
 const allOrders = ref<Order[]>([]);
 
-// Loading State (for async data)
+// Loading State
 const isLoading = ref(true);
 const loadError = ref<string | null>(null);
 
@@ -49,11 +50,11 @@ const isCartOpen = ref(false);
 const isDashboardOpen = ref(false);
 const isScrolled = ref(false);
 
-// User Data State
+// User Data State - CartItem 現在以 variant 為單位
 const cart = ref<CartItem[]>([]);
 const user = ref<User | null>(null);
 
-// Seasonal Products (過濾掉尚未載入的 undefined 項目)
+// Seasonal Products
 const seasonalProducts = computed(
   () =>
     SEASONAL_INDICES.map((index) => products.value[index]).filter(
@@ -61,7 +62,7 @@ const seasonalProducts = computed(
     ) as Product[]
 );
 
-// Scroll Detection (保留 Scroll 但不需要 Contact Ref 了)
+// Scroll Detection
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 50;
 };
@@ -69,12 +70,10 @@ const handleScroll = () => {
 onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
 
-  // 非同步載入資料 (模擬 API 請求)
   try {
     isLoading.value = true;
     loadError.value = null;
 
-    // 並行載入所有資料
     const [productsData, ordersData, inquiriesData, categoriesData] =
       await Promise.all([
         api.products.getAll(),
@@ -107,17 +106,19 @@ onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
 });
 
+// ============================================
 // Navigation Handlers
+// ============================================
 const handleProductClick = (product: Product) => {
   activeProduct.value = product;
-  previousView.value = currentView.value; // Save current view before navigating
+  previousView.value = currentView.value;
   currentView.value = "PRODUCT_DETAIL";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
 const handleCloseProduct = () => {
   activeProduct.value = null;
-  currentView.value = previousView.value; // Return to previous view
+  currentView.value = previousView.value;
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
@@ -144,12 +145,14 @@ const handleContactClick = () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-// Cart Logic
-const handleAddToCart = (product: Product) => {
-  const stock = product.stock || 0;
+// ============================================
+// Cart Logic (以 variantId 為單位)
+// ============================================
+const handleAddToCart = (product: Product, variant: ProductVariant) => {
+  const stock = variant.stock || 0;
   if (stock <= 0) return;
 
-  const existing = cart.value.find((item) => item.id === product.id);
+  const existing = cart.value.find((item) => item.variant.id === variant.id);
 
   if (existing && existing.quantity + 1 > stock) {
     return;
@@ -158,44 +161,61 @@ const handleAddToCart = (product: Product) => {
   if (existing) {
     existing.quantity++;
   } else {
-    cart.value.push({ ...product, quantity: 1 });
+    cart.value.push({
+      product,
+      variant,
+      quantity: 1,
+    });
   }
   isCartOpen.value = true;
 };
 
-const handleRemoveFromCart = (id: string) => {
-  cart.value = cart.value.filter((item) => item.id !== id);
+const handleRemoveFromCart = (variantId: string) => {
+  cart.value = cart.value.filter((item) => item.variant.id !== variantId);
 };
 
-const handleUpdateQuantity = (id: string, delta: number) => {
-  const item = cart.value.find((item) => item.id === id);
+const handleUpdateQuantity = (variantId: string, delta: number) => {
+  const item = cart.value.find((item) => item.variant.id === variantId);
   if (item) {
-    // Check stock limit
-    if (delta > 0) {
-      const product = products.value.find((p) => p.id === id);
-      const stock = product?.stock || 0;
-      if (item.quantity + delta > stock) return;
-    }
+    // 從即時商品資料取得庫存
+    const realTimeProduct = products.value.find(
+      (p) => p.id === item.product.id
+    );
+    const realTimeVariant = realTimeProduct?.variants?.find(
+      (v) => v.id === variantId
+    );
+    const stock = realTimeVariant?.stock || 0;
+
+    if (delta > 0 && item.quantity + delta > stock) return;
 
     const newQty = item.quantity + delta;
     if (newQty > 0) item.quantity = newQty;
+    else handleRemoveFromCart(variantId);
   }
 };
 
-const handleSetQuantity = (id: string, quantity: number) => {
-  const item = cart.value.find((item) => item.id === id);
+const handleSetQuantity = (variantId: string, quantity: number) => {
+  const item = cart.value.find((item) => item.variant.id === variantId);
   if (item) {
-    const product = products.value.find((p) => p.id === id);
-    const stock = product?.stock || 0;
+    const realTimeProduct = products.value.find(
+      (p) => p.id === item.product.id
+    );
+    const realTimeVariant = realTimeProduct?.variants?.find(
+      (v) => v.id === variantId
+    );
+    const stock = realTimeVariant?.stock || 0;
 
     let newQty = Math.floor(quantity);
     if (isNaN(newQty) || newQty < 1) newQty = 1;
-
-    if (stock > 0 && newQty > stock) {
-      newQty = stock;
-    }
+    if (stock > 0 && newQty > stock) newQty = stock;
     item.quantity = newQty;
   }
+};
+
+// Helper: 取得購物車中某 variant 的數量
+const getCartQuantityForVariant = (variantId: string): number => {
+  const item = cart.value.find((i) => i.variant.id === variantId);
+  return item ? item.quantity : 0;
 };
 
 const handleCheckoutStart = () => {
@@ -206,19 +226,15 @@ const handleCheckoutStart = () => {
     return;
   }
   isCartOpen.value = false;
-  handleCloseProduct(); // This will set activeProduct to null
+  handleCloseProduct();
   currentView.value = "CHECKOUT";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
 const handlePlaceOrder = async (shippingDetails: ShippingDetails) => {
   try {
-    // 透過 API 建立訂單
     const newOrder = await api.orders.create({
-      items: cart.value.map((item) => ({
-        productId: item.id,
-        quantity: item.quantity,
-      })),
+      items: cart.value,
       shippingDetails,
     });
 
@@ -226,25 +242,19 @@ const handlePlaceOrder = async (shippingDetails: ShippingDetails) => {
     products.value = await api.products.getAll();
     allOrders.value = await api.orders.getAll();
 
-    // Update User's local order list
     if (user.value) {
       user.value.orders.unshift(newOrder);
     }
 
     cart.value = [];
 
-    // 根據角色跳轉到對應的訂單管理區塊
     if (user.value?.role === "ADMIN") {
-      // Admin 跳轉到 Admin Dashboard (Orders tab)
       currentView.value = "ADMIN_DASHBOARD";
     } else {
-      // 一般使用者跳回首頁並開啟訂單管理區塊
       currentView.value = "HOME";
       isDashboardOpen.value = true;
 
-      // 如果是匯款方式，提示使用者補充匯款資訊
       if (shippingDetails.method === "BANK_TRANSFER") {
-        // 延遲一下讓 Dashboard 先打開
         setTimeout(() => {
           alert(
             "訂單已成功建立！\n\n請於匯款後，在訂單備註中補充以下資訊：\n• 匯款帳號末五碼\n• 匯款金額\n• 匯款時間"
@@ -254,11 +264,12 @@ const handlePlaceOrder = async (shippingDetails: ShippingDetails) => {
     }
   } catch (error) {
     console.error("Failed to place order:", error);
-    // 可加入錯誤提示 UI
   }
 };
 
+// ============================================
 // Auth Logic
+// ============================================
 const handleAuthClose = () => {
   isAuthOpen.value = false;
   postLoginRedirect.value = null;
@@ -266,18 +277,17 @@ const handleAuthClose = () => {
 
 const handleLogin = (loggedInUser: User) => {
   user.value = loggedInUser;
-  isAuthOpen.value = false; // Close modal on successful login
+  isAuthOpen.value = false;
 
   if (loggedInUser.role === "ADMIN") {
     currentView.value = "ADMIN_DASHBOARD";
-    postLoginRedirect.value = null; // Always clear redirect for admin
+    postLoginRedirect.value = null;
     return;
   }
 
-  // If a redirect was planned (e.g., to checkout), execute it
   if (postLoginRedirect.value) {
     currentView.value = postLoginRedirect.value;
-    postLoginRedirect.value = null; // Reset redirect state after using it
+    postLoginRedirect.value = null;
   }
 };
 
@@ -287,7 +297,9 @@ const handleLogout = () => {
   handleHomeClick();
 };
 
+// ============================================
 // Inquiry Logic
+// ============================================
 const handleSubmitInquiry = async (
   name: string,
   email: string,
@@ -301,12 +313,12 @@ const handleSubmitInquiry = async (
   }
 };
 
-// Admin Actions
-
+// ============================================
+// Admin: Order & Inquiry
+// ============================================
 const handleUpdateOrderStatus = async (id: string, status: OrderStatus) => {
   try {
     await api.orders.updateStatus(id, status);
-    // 更新本地狀態
     const order = allOrders.value.find((o) => o.id === id);
     if (order) order.status = status;
 
@@ -322,7 +334,6 @@ const handleUpdateOrderStatus = async (id: string, status: OrderStatus) => {
 const handleReplyInquiry = async (id: string) => {
   try {
     await api.inquiries.markAsReplied(id);
-    // 更新本地狀態
     const inquiry = inquiries.value.find((i) => i.id === id);
     if (inquiry) inquiry.status = "REPLIED";
   } catch (error) {
@@ -330,8 +341,12 @@ const handleReplyInquiry = async (id: string) => {
   }
 };
 
-// Product CRUD Handlers
-const handleCreateProduct = async (productData: Omit<Product, "id">) => {
+// ============================================
+// Admin: Product CRUD
+// ============================================
+const handleCreateProduct = async (
+  productData: Omit<Product, "id" | "variants" | "totalStock">
+) => {
   try {
     const newProduct = await api.products.create(productData);
     products.value.push(newProduct);
@@ -384,14 +399,59 @@ const handleUploadImage = async (file: File): Promise<string> => {
   }
 };
 
+// ============================================
+// Admin: Variant CRUD
+// ============================================
+const handleCreateVariant = async (
+  productId: string,
+  data: { color: string; size: string; stock: number }
+) => {
+  try {
+    const newVariant = await api.variants.create(productId, data);
+    // 重新載入商品以更新 variants
+    products.value = await api.products.getAll();
+    return newVariant;
+  } catch (error) {
+    console.error("Failed to create variant:", error);
+    throw error;
+  }
+};
+
+const handleUpdateVariant = async (
+  id: string,
+  data: Partial<ProductVariant>
+) => {
+  try {
+    const updated = await api.variants.update(id, data);
+    // 重新載入商品以更新 variants
+    products.value = await api.products.getAll();
+    return updated;
+  } catch (error) {
+    console.error("Failed to update variant:", error);
+    throw error;
+  }
+};
+
+const handleDeleteVariant = async (id: string) => {
+  try {
+    const success = await api.variants.delete(id);
+    // 重新載入商品以更新 variants
+    products.value = await api.products.getAll();
+    return success;
+  } catch (error) {
+    console.error("Failed to delete variant:", error);
+    throw error;
+  }
+};
+
+// ============================================
+// User: Payment Note
+// ============================================
 const handleUpdatePaymentNote = async (orderId: string, note: string) => {
   try {
     await api.orders.updatePaymentNote(orderId, note);
-
-    // 重新載入訂單資料以確保 UI 即時更新
     allOrders.value = await api.orders.getAll();
 
-    // Update user's order - 使用新陣列來觸發響應式更新
     if (user.value) {
       const updatedOrders = user.value.orders.map((o) =>
         o.id === orderId ? { ...o, paymentNote: note } : o
@@ -404,7 +464,9 @@ const handleUpdatePaymentNote = async (orderId: string, note: string) => {
   }
 };
 
-// Category CRUD Handlers
+// ============================================
+// Admin: Category CRUD
+// ============================================
 const handleCreateCategory = async (categoryData: Omit<Category, "id">) => {
   try {
     const newCategory = await api.categories.create(categoryData);
@@ -444,12 +506,6 @@ const handleDeleteCategory = async (id: string) => {
     throw error;
   }
 };
-
-const getActiveProductQuantity = computed(() => {
-  if (!activeProduct.value) return 0;
-  const item = cart.value.find((i) => i.id === activeProduct.value!.id);
-  return item ? item.quantity : 0;
-});
 </script>
 
 <template>
@@ -516,13 +572,16 @@ const getActiveProductQuantity = computed(() => {
           @create-category="handleCreateCategory"
           @update-category="handleUpdateCategory"
           @delete-category="handleDeleteCategory"
+          @create-variant="handleCreateVariant"
+          @update-variant="handleUpdateVariant"
+          @delete-variant="handleDeleteVariant"
         />
       </div>
 
       <div v-if="currentView === 'PRODUCT_DETAIL' && activeProduct">
         <ProductDetail
           :product="activeProduct"
-          :currentQuantity="getActiveProductQuantity"
+          :currentQuantityForVariant="getCartQuantityForVariant"
           @close="handleCloseProduct"
           @add-to-cart="handleAddToCart"
         />
@@ -540,7 +599,6 @@ const getActiveProductQuantity = computed(() => {
     <Footer v-if="currentView !== 'ADMIN_DASHBOARD'" />
 
     <!-- Overlays -->
-
     <AuthModal
       :isOpen="isAuthOpen"
       @close="handleAuthClose"

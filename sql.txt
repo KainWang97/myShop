@@ -1,0 +1,115 @@
+-- 建立資料庫
+CREATE DATABASE IF NOT EXISTS chooseMVP CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE chooseMVP;
+
+-- 1. 使用者表 (Users)
+CREATE TABLE users (
+    user_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '使用者ID',
+    email VARCHAR(100) NOT NULL UNIQUE COMMENT '帳號/信箱',
+    password VARCHAR(255) NOT NULL COMMENT '加密後的密碼',
+    name VARCHAR(50) NOT NULL COMMENT '姓名',
+    phone VARCHAR(20) COMMENT '電話',
+    role ENUM('MEMBER', 'ADMIN') NOT NULL DEFAULT 'MEMBER' COMMENT '權限角色',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '註冊時間'
+) COMMENT='使用者資料表';
+
+-- 2. 商品分類表 (Categories)
+CREATE TABLE categories (
+    category_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL COMMENT '分類名稱 (限英文, 用於SKU編碼前綴)',
+    description VARCHAR(200) COMMENT '分類描述',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間'
+) COMMENT='商品分類表';
+
+-- 3. 商品主檔 (Products)
+CREATE TABLE products (
+    product_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    category_id BIGINT NOT NULL COMMENT '關聯分類',
+    name VARCHAR(100) NOT NULL COMMENT '商品名稱',
+    description TEXT COMMENT '商品描述',
+    price DECIMAL(10, 2) NOT NULL COMMENT '商品單價',
+    image_url VARCHAR(255) COMMENT '商品主圖URL',
+    is_listed BOOLEAN DEFAULT TRUE COMMENT '是否上架',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
+    FOREIGN KEY (category_id) REFERENCES categories(category_id),
+    INDEX idx_category_listed (category_id, is_listed),
+    INDEX idx_name (name),
+    INDEX idx_created_at (created_at)
+) COMMENT='商品主檔';
+
+-- 4. 商品規格變體 (Product Variants / SKUs)
+CREATE TABLE product_variants (
+    variant_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    product_id BIGINT NOT NULL COMMENT '關聯商品主檔',
+    sku_code VARCHAR(50) NOT NULL UNIQUE COMMENT 'SKU編碼, 格式: {分類縮寫}{顏色首兩字母}-{尺寸}-{流水號} (ex: APWH-M-001 = Apparel/White/M/001)',
+    color VARCHAR(20) NOT NULL COMMENT '顏色',
+    size VARCHAR(10) NOT NULL COMMENT '尺寸',
+    stock INT NOT NULL DEFAULT 0 COMMENT '庫存數量',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE,
+    UNIQUE KEY uk_product_color_size (product_id, color, size),
+    INDEX idx_stock (stock)
+) COMMENT='商品規格庫存表';
+
+-- 5. 購物車 (Cart Items)
+CREATE TABLE cart_items (
+    cart_item_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '會員ID',
+    variant_id BIGINT NOT NULL COMMENT '商品規格ID',
+    quantity INT NOT NULL DEFAULT 1 COMMENT '數量',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '加入購物車時間',
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id) ON DELETE CASCADE,
+    UNIQUE KEY uk_user_variant (user_id, variant_id),
+    INDEX idx_user (user_id),
+    INDEX idx_created_at (created_at)
+) COMMENT='購物車明細';
+
+-- 6. 訂單主檔 (Orders)
+CREATE TABLE orders (
+    order_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '下單會員',
+    total_amount DECIMAL(10, 2) NOT NULL COMMENT '訂單總金額',
+    status ENUM('PENDING', 'PAID', 'SHIPPED', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'PENDING' COMMENT '訂單狀態',
+    payment_method VARCHAR(20) NOT NULL DEFAULT 'BANK_TRANSFER' COMMENT '付款方式',
+    shipping_method VARCHAR(20) NOT NULL COMMENT '運送方式 (STORE, MAIL)',
+    recipient_name VARCHAR(50) NOT NULL COMMENT '收件人姓名',
+    recipient_phone VARCHAR(20) NOT NULL COMMENT '收件人電話',
+    shipping_address VARCHAR(255) NOT NULL COMMENT '地址或超商門市資訊',
+    payment_note TEXT COMMENT '使用者匯款資訊/備註',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '下單時間',
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    INDEX idx_user_status (user_id, status),
+    INDEX idx_created_at (created_at),
+    INDEX idx_status (status)
+) COMMENT='訂單主檔';
+
+-- 7. 訂單明細 (Order Items)
+CREATE TABLE order_items (
+    order_item_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    variant_id BIGINT NOT NULL,
+    price DECIMAL(10, 2) NOT NULL COMMENT '購買當下的單價',
+    quantity INT NOT NULL COMMENT '購買數量',
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id),
+    INDEX idx_order (order_id)
+) COMMENT='訂單商品明細';
+
+-- 8. 聯絡訊息表 (Contact Messages)
+CREATE TABLE contact_messages (
+    message_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NULL COMMENT '會員ID (若為已登入會員送出)',
+    name VARCHAR(50) NOT NULL COMMENT '填寫人姓名',
+    email VARCHAR(100) NOT NULL COMMENT '聯絡信箱',
+    message TEXT NOT NULL COMMENT '訊息內容',
+    status ENUM('UNREAD', 'READ', 'REPLIED') NOT NULL DEFAULT 'UNREAD' COMMENT '處理狀態',
+    ip_address VARCHAR(45) COMMENT 'IP位址 (用於防濫發)',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '送出時間',
+    replied_at TIMESTAMP NULL COMMENT '回覆時間',
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    INDEX idx_status_created (status, created_at),
+    INDEX idx_email (email),
+    INDEX idx_ip_created (ip_address, created_at)
+) COMMENT='聯絡訊息表';

@@ -28,8 +28,12 @@ const formData = ref<ShippingDetails>({
   storeName: "",
 });
 
+// 計算總價 (使用新 CartItem 結構)
 const total = computed(() =>
-  props.cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0)
+  props.cartItems.reduce(
+    (acc, item) => acc + item.product.price * item.quantity,
+    0
+  )
 );
 const shippingCost = computed(() => (total.value > 200 ? 0 : 15));
 const finalTotal = computed(() => total.value + shippingCost.value);
@@ -42,7 +46,6 @@ const handleSubmitInfo = () => {
 const handleFinalSubmit = () => {
   isPlacingOrder.value = true;
   emit("place-order", { ...formData.value, method: paymentMethod.value });
-  // 注意：父組件會處理頁面跳轉，所以不需要在這裡重置 isPlacingOrder
 };
 </script>
 
@@ -297,23 +300,31 @@ const handleFinalSubmit = () => {
         <h2 class="font-serif text-xl text-sumi mb-6">Order Summary</h2>
 
         <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 mb-6">
-          <div v-for="item in cartItems" :key="item.id" class="flex gap-4">
+          <div
+            v-for="item in cartItems"
+            :key="item.variant.id"
+            class="flex gap-4"
+          >
             <div class="w-16 h-20 bg-stone-200 flex-shrink-0">
               <img
-                :src="item.image"
-                :alt="item.name"
+                :src="item.product.imageUrl"
+                :alt="item.product.name"
                 class="w-full h-full object-cover"
               />
             </div>
             <div class="flex-1 py-1">
               <div class="flex justify-between items-start">
-                <h3 class="font-serif text-sm text-sumi">{{ item.name }}</h3>
+                <h3 class="font-serif text-sm text-sumi">
+                  {{ item.product.name }}
+                </h3>
                 <p class="text-sm font-light text-stone-600">
-                  ${{ item.price * item.quantity }}
+                  ${{ item.product.price * item.quantity }}
                 </p>
               </div>
+              <!-- 顯示規格資訊 -->
               <p class="text-xs text-stone-400 mt-1">
-                Qty: {{ item.quantity }}
+                {{ item.variant.color }} / {{ item.variant.size }} · Qty:
+                {{ item.quantity }}
               </p>
             </div>
           </div>

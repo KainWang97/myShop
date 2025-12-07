@@ -6,13 +6,16 @@
 
 import type {
   Product,
+  ProductVariant,
   Order,
+  OrderItem,
   Inquiry,
   ShippingDetails,
   OrderStatus,
   Category,
+  CartItem,
 } from "../types";
-import { PRODUCTS, CATEGORIES } from "../constants";
+import { PRODUCTS, MOCK_CATEGORIES, MOCK_VARIANTS } from "../constants";
 
 // ============================================
 // 模擬網路延遲 (未來移除)
@@ -24,97 +27,102 @@ const simulateDelay = (ms: number = 300): Promise<void> =>
 // 模擬資料儲存 (未來由後端資料庫取代)
 // ============================================
 let mockProducts: Product[] = [...PRODUCTS];
-let mockCategories: Category[] = CATEGORIES.map((name, index) => ({
-  id: index.toString(),
-  name,
-  description: "",
-  createdAt: new Date().toISOString(),
-}));
+let mockVariants: ProductVariant[] = [...MOCK_VARIANTS];
+let mockCategories: Category[] = [...MOCK_CATEGORIES];
 let mockOrders: Order[] = [];
 let mockInquiries: Inquiry[] = [];
 
+// SKU 流水號計數器 (模擬)
+let skuCounter = 100;
+
 // ============================================
-// API 基底 URL (未來從環境變數讀取)
+// Helper: 產生 SKU 編碼
+// 格式: {分類縮寫}{顏色首兩字母}-{尺寸}-{流水號}
 // ============================================
-// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const generateSku = (
+  categoryName: string,
+  color: string,
+  size: string
+): string => {
+  const categoryPrefix = categoryName.substring(0, 2).toUpperCase();
+  const colorPrefix = color.substring(0, 2).toUpperCase();
+  const sizeCode = size.toUpperCase();
+  skuCounter++;
+  return `${categoryPrefix}${colorPrefix}-${sizeCode}-${String(
+    skuCounter
+  ).padStart(3, "0")}`;
+};
+
+// ============================================
+// Helper: 計算商品總庫存
+// ============================================
+const calculateTotalStock = (productId: string): number => {
+  return mockVariants
+    .filter((v) => v.productId === productId)
+    .reduce((sum, v) => sum + v.stock, 0);
+};
+
+// ============================================
+// Helper: 更新商品的 variants 和 totalStock
+// ============================================
+const refreshProductVariants = (productId: string) => {
+  const product = mockProducts.find((p) => p.id === productId);
+  if (product) {
+    product.variants = mockVariants.filter((v) => v.productId === productId);
+    product.totalStock = calculateTotalStock(productId);
+  }
+};
 
 // ============================================
 // Product API
 // ============================================
 export const productApi = {
   /**
-   * 取得所有商品
+   * 取得所有商品 (含 variants)
    * GET /api/products
    */
   async getAll(): Promise<Product[]> {
     await simulateDelay(500);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/products`);
-    // return response.json();
-    return [...mockProducts];
+    // 確保每個商品都有最新的 variants 和 totalStock
+    return mockProducts.map((p) => ({
+      ...p,
+      variants: mockVariants.filter((v) => v.productId === p.id),
+      totalStock: calculateTotalStock(p.id),
+    }));
   },
 
   /**
-   * 取得單一商品
+   * 取得單一商品 (含 variants)
    * GET /api/products/:id
    */
   async getById(id: string): Promise<Product | undefined> {
     await simulateDelay(200);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/products/${id}`);
-    // return response.json();
-    return mockProducts.find((p) => p.id === id);
-  },
-
-  /**
-   * 取得所有分類
-   * GET /api/categories
-   */
-  async getCategories(): Promise<string[]> {
-    await simulateDelay(200);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/categories`);
-    // return response.json();
-    return [...CATEGORIES];
-  },
-
-  /**
-   * 更新商品庫存 (Admin)
-   * PATCH /api/products/:id/stock
-   */
-  async updateStock(id: string, newStock: number): Promise<boolean> {
-    await simulateDelay(300);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/products/${id}/stock`, {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ stock: newStock })
-    // });
-    // return response.ok;
     const product = mockProducts.find((p) => p.id === id);
     if (product) {
-      product.stock = Math.max(0, newStock);
-      return true;
+      return {
+        ...product,
+        variants: mockVariants.filter((v) => v.productId === id),
+        totalStock: calculateTotalStock(id),
+      };
     }
-    return false;
+    return undefined;
   },
 
   /**
    * 新增商品 (Admin)
    * POST /api/products
+   * 預設 isListed: false, 無規格
    */
-  async create(data: Omit<Product, "id">): Promise<Product> {
+  async create(
+    data: Omit<Product, "id" | "variants" | "totalStock">
+  ): Promise<Product> {
     await simulateDelay(500);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/products`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(data)
-    // });
-    // return response.json();
     const newProduct: Product = {
       id: Date.now().toString(),
       ...data,
+      isListed: false, // 預設未上架
+      variants: [],
+      totalStock: 0,
     };
     mockProducts.push(newProduct);
     return newProduct;
@@ -126,67 +134,123 @@ export const productApi = {
    */
   async update(id: string, data: Partial<Product>): Promise<Product | null> {
     await simulateDelay(400);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/products/${id}`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(data)
-    // });
-    // return response.json();
     const index = mockProducts.findIndex((p) => p.id === id);
     if (index !== -1) {
       mockProducts[index] = { ...mockProducts[index], ...data };
+      refreshProductVariants(id);
       return mockProducts[index];
     }
     return null;
   },
 
   /**
-   * 刪除商品 (Admin)
+   * 刪除商品 (Admin) - 會連帶刪除所有規格
    * DELETE /api/products/:id
    */
   async delete(id: string): Promise<boolean> {
     await simulateDelay(300);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/products/${id}`, {
-    //   method: 'DELETE'
-    // });
-    // return response.ok;
     const index = mockProducts.findIndex((p) => p.id === id);
     if (index !== -1) {
       mockProducts.splice(index, 1);
+      // 刪除所有關聯的 variants
+      mockVariants = mockVariants.filter((v) => v.productId !== id);
       return true;
     }
     return false;
   },
 
   /**
-   * 上傳商品圖片 (模擬後端 → Cloudinary 流程)
+   * 上傳商品圖片
    * POST /api/upload/image
-   * @param file - 本地檔案
-   * @returns 圖片 URL
    */
   async uploadImage(file: File): Promise<{ url: string }> {
-    // 模擬上傳延遲 (1.5-3秒)
     await simulateDelay(1500 + Math.random() * 1500);
-
-    // 模擬 10% 失敗機率 (用於測試錯誤處理)
     if (Math.random() < 0.1) {
       throw new Error("Upload failed: Network error");
     }
-
-    // 未來替換成:
-    // const formData = new FormData();
-    // formData.append('image', file);
-    // const response = await fetch(`${API_BASE_URL}/upload/image`, {
-    //   method: 'POST',
-    //   body: formData
-    // });
-    // return response.json();
-
-    // 模擬回傳 Cloudinary URL (使用 picsum 模擬)
     const fakeUrl = `https://picsum.photos/seed/${Date.now()}/800/800`;
     return { url: fakeUrl };
+  },
+};
+
+// ============================================
+// Variant API (新增)
+// ============================================
+export const variantApi = {
+  /**
+   * 取得商品所有規格
+   * GET /api/products/:productId/variants
+   */
+  async getByProductId(productId: string): Promise<ProductVariant[]> {
+    await simulateDelay(200);
+    return mockVariants.filter((v) => v.productId === productId);
+  },
+
+  /**
+   * 新增規格 (SKU 自動產生)
+   * POST /api/products/:productId/variants
+   */
+  async create(
+    productId: string,
+    data: { color: string; size: string; stock: number }
+  ): Promise<ProductVariant> {
+    await simulateDelay(400);
+
+    const product = mockProducts.find((p) => p.id === productId);
+    if (!product) throw new Error("Product not found");
+
+    const category = mockCategories.find((c) => c.id === product.categoryId);
+    const categoryName = category?.name || "UN";
+
+    const skuCode = generateSku(categoryName, data.color, data.size);
+
+    const newVariant: ProductVariant = {
+      id: Date.now().toString(),
+      productId,
+      skuCode,
+      color: data.color,
+      size: data.size,
+      stock: data.stock,
+      createdAt: new Date().toISOString(),
+    };
+
+    mockVariants.push(newVariant);
+    refreshProductVariants(productId);
+    return newVariant;
+  },
+
+  /**
+   * 更新規格 (含庫存)
+   * PUT /api/variants/:id
+   */
+  async update(
+    id: string,
+    data: Partial<ProductVariant>
+  ): Promise<ProductVariant | null> {
+    await simulateDelay(300);
+    const index = mockVariants.findIndex((v) => v.id === id);
+    if (index !== -1) {
+      mockVariants[index] = { ...mockVariants[index], ...data };
+      refreshProductVariants(mockVariants[index].productId);
+      return mockVariants[index];
+    }
+    return null;
+  },
+
+  /**
+   * 刪除規格
+   * DELETE /api/variants/:id
+   */
+  async delete(id: string): Promise<boolean> {
+    await simulateDelay(300);
+    const index = mockVariants.findIndex((v) => v.id === id);
+    if (index !== -1) {
+      const productId = mockVariants[index].productId;
+      mockVariants.splice(index, 1);
+      refreshProductVariants(productId);
+      return true;
+    }
+    return false;
   },
 };
 
@@ -200,9 +264,6 @@ export const orderApi = {
    */
   async getAll(): Promise<Order[]> {
     await simulateDelay(400);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/orders`);
-    // return response.json();
     return [...mockOrders];
   },
 
@@ -211,44 +272,38 @@ export const orderApi = {
    * POST /api/orders
    */
   async create(orderData: {
-    items: { productId: string; quantity: number }[];
+    items: CartItem[];
     shippingDetails: ShippingDetails;
   }): Promise<Order> {
     await simulateDelay(800);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/orders`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(orderData)
-    // });
-    // return response.json();
 
-    // 模擬建立訂單
-    const orderItems = orderData.items.map((item) => {
-      const product = mockProducts.find((p) => p.id === item.productId);
-      return {
-        ...product!,
-        quantity: item.quantity,
-      };
-    });
+    // 建立訂單項目
+    const orderItems: OrderItem[] = orderData.items.map((item) => ({
+      product: item.product,
+      variant: item.variant,
+      price: item.product.price,
+      quantity: item.quantity,
+    }));
 
     const newOrder: Order = {
       id: Math.floor(1000 + Math.random() * 9000).toString(),
-      date: new Date().toLocaleDateString(),
       items: orderItems,
       total: orderItems.reduce(
         (acc, item) => acc + item.price * item.quantity,
         0
       ),
-      status: "Processing",
+      status: "PENDING",
       shippingDetails: orderData.shippingDetails,
+      createdAt: new Date().toISOString(),
+      date: new Date().toLocaleDateString(),
     };
 
     // 扣除庫存
     orderData.items.forEach((item) => {
-      const product = mockProducts.find((p) => p.id === item.productId);
-      if (product && product.stock !== undefined) {
-        product.stock = Math.max(0, product.stock - item.quantity);
+      const variant = mockVariants.find((v) => v.id === item.variant.id);
+      if (variant) {
+        variant.stock = Math.max(0, variant.stock - item.quantity);
+        refreshProductVariants(variant.productId);
       }
     });
 
@@ -262,13 +317,6 @@ export const orderApi = {
    */
   async updateStatus(id: string, status: OrderStatus): Promise<boolean> {
     await simulateDelay(300);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/orders/${id}/status`, {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ status })
-    // });
-    // return response.ok;
     const order = mockOrders.find((o) => o.id === id);
     if (order) {
       order.status = status;
@@ -283,13 +331,6 @@ export const orderApi = {
    */
   async updatePaymentNote(id: string, note: string): Promise<boolean> {
     await simulateDelay(300);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/orders/${id}/payment-note`, {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ paymentNote: note })
-    // });
-    // return response.ok;
     const order = mockOrders.find((o) => o.id === id);
     if (order) {
       order.paymentNote = note;
@@ -309,9 +350,6 @@ export const inquiryApi = {
    */
   async getAll(): Promise<Inquiry[]> {
     await simulateDelay(300);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/inquiries`);
-    // return response.json();
     return [...mockInquiries];
   },
 
@@ -325,18 +363,12 @@ export const inquiryApi = {
     message: string;
   }): Promise<Inquiry> {
     await simulateDelay(500);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/inquiries`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(data)
-    // });
-    // return response.json();
     const newInquiry: Inquiry = {
       id: Date.now().toString(),
       ...data,
+      status: "UNREAD",
+      createdAt: new Date().toISOString(),
       date: new Date().toLocaleDateString(),
-      status: "PENDING",
     };
     mockInquiries.unshift(newInquiry);
     return newInquiry;
@@ -348,14 +380,10 @@ export const inquiryApi = {
    */
   async markAsReplied(id: string): Promise<boolean> {
     await simulateDelay(200);
-    // 未來替換成:
-    // const response = await fetch(`${API_BASE_URL}/inquiries/${id}/reply`, {
-    //   method: 'PATCH'
-    // });
-    // return response.ok;
     const inquiry = mockInquiries.find((i) => i.id === id);
     if (inquiry) {
       inquiry.status = "REPLIED";
+      inquiry.repliedAt = new Date().toISOString();
       return true;
     }
     return false;
@@ -363,11 +391,11 @@ export const inquiryApi = {
 };
 
 // ============================================
-// 統一匯出
+// Category API
 // ============================================
 export const categoryApi = {
   /**
-   * 取得所有分類 (Admin)
+   * 取得所有分類
    * GET /api/categories
    */
   async getAll(): Promise<Category[]> {
@@ -378,9 +406,14 @@ export const categoryApi = {
   /**
    * 新增分類 (Admin)
    * POST /api/categories
+   * 注意：名稱限英文
    */
   async create(data: Omit<Category, "id">): Promise<Category> {
     await simulateDelay(500);
+    // 驗證英文
+    if (!/^[A-Za-z\s]+$/.test(data.name)) {
+      throw new Error("Category name must be in English only");
+    }
     const newCategory: Category = {
       id: Date.now().toString(),
       ...data,
@@ -396,6 +429,10 @@ export const categoryApi = {
    */
   async update(id: string, data: Partial<Category>): Promise<Category | null> {
     await simulateDelay(400);
+    // 驗證英文
+    if (data.name && !/^[A-Za-z\s]+$/.test(data.name)) {
+      throw new Error("Category name must be in English only");
+    }
     const index = mockCategories.findIndex((c) => c.id === id);
     if (index !== -1) {
       mockCategories[index] = { ...mockCategories[index], ...data };
@@ -419,8 +456,12 @@ export const categoryApi = {
   },
 };
 
+// ============================================
+// 統一匯出
+// ============================================
 export const api = {
   products: productApi,
+  variants: variantApi,
   orders: orderApi,
   inquiries: inquiryApi,
   categories: categoryApi,

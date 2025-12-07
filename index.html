@@ -1,40 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Choose | Better Choices</title>
     <!-- Tailwind CSS (CDN for simplicity as per project structure, but standard Vite would usually import CSS) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Inter:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              serif: ['"Noto Serif JP"', 'serif'],
-              sans: ['"Inter"', 'sans-serif'],
+              serif: ['"Noto Serif JP"', "serif"],
+              sans: ['"Inter"', "sans-serif"],
             },
             colors: {
-              'sumi': '#1c1c1c', // Ink black
-              'paper': '#f5f5f4', // Stone 100 approx
-              'washi': '#fafaf9', // Stone 50
-              'linen': '#e7e5e4', // Stone 200
-            }
-          }
-        }
-      }
+              sumi: "#1c1c1c", // Ink black
+              paper: "#f5f5f4", // Stone 100 approx
+              washi: "#fafaf9", // Stone 50
+              linen: "#e7e5e4", // Stone 200
+            },
+          },
+        },
+      };
     </script>
     <style>
       body {
         background-color: #fafaf9; /* washi */
         color: #1c1c1c; /* sumi */
-        font-family: 'Inter', sans-serif;
+        font-family: "Inter", sans-serif;
       }
-      h1, h2, h3, h4, h5, h6, .serif {
-        font-family: 'Noto Serif JP', serif;
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      .serif {
+        font-family: "Noto Serif JP", serif;
       }
       .no-scrollbar::-webkit-scrollbar {
         display: none;
@@ -44,8 +53,7 @@
         scrollbar-width: none;
       }
     </style>
-
-</head>
+  </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>

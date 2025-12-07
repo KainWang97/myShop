@@ -145,7 +145,9 @@ const savePaymentNote = async (orderId: string) => {
                 class="flex justify-between text-sm font-light text-stone-600"
               >
                 <span
-                  >{{ item.name }}
+                  >{{ item.product.name }} ({{ item.variant.color }}/{{
+                    item.variant.size
+                  }})
                   <span class="text-stone-400">x{{ item.quantity }}</span></span
                 >
                 <span>${{ item.price * item.quantity }}</span>
@@ -159,11 +161,13 @@ const savePaymentNote = async (orderId: string) => {
                 class="text-xs px-2 py-1 uppercase tracking-wider border"
                 :class="{
                   'border-yellow-200 bg-yellow-50 text-yellow-800':
-                    order.status === 'Processing',
+                    order.status === 'PENDING',
                   'border-blue-200 bg-blue-50 text-blue-800':
-                    order.status === 'Shipped',
+                    order.status === 'SHIPPED',
                   'border-green-200 bg-green-50 text-green-800':
-                    order.status !== 'Processing' && order.status !== 'Shipped',
+                    order.status === 'PAID' || order.status === 'COMPLETED',
+                  'border-red-200 bg-red-50 text-red-800':
+                    order.status === 'CANCELLED',
                 }"
               >
                 {{ order.status }}

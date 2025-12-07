@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import type { Product, Order, Inquiry, OrderStatus, Category } from "../types";
+import { ref } from "vue";
+import type {
+  Product,
+  ProductVariant,
+  Order,
+  Inquiry,
+  OrderStatus,
+  Category,
+} from "../types";
 
 const props = defineProps<{
   products: Product[];
@@ -12,7 +19,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update-order-status", id: string, status: OrderStatus): void;
   (e: "reply-inquiry", id: string): void;
-  (e: "create-product", data: Omit<Product, "id">): Promise<Product>;
+  (
+    e: "create-product",
+    data: Omit<Product, "id" | "variants" | "totalStock">
+  ): Promise<Product>;
   (
     e: "update-product",
     id: string,
@@ -23,25 +33,35 @@ const emit = defineEmits<{
   (e: "create-category", data: Omit<Category, "id">): Promise<void>;
   (e: "update-category", id: string, data: Partial<Category>): Promise<void>;
   (e: "delete-category", id: string): Promise<void>;
+  (
+    e: "create-variant",
+    productId: string,
+    data: { color: string; size: string; stock: number }
+  ): Promise<ProductVariant>;
+  (
+    e: "update-variant",
+    id: string,
+    data: Partial<ProductVariant>
+  ): Promise<ProductVariant | null>;
+  (e: "delete-variant", id: string): Promise<boolean>;
 }>();
 
 const activeTab = ref<"INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES">(
   "INVENTORY"
 );
 
-// Form State
+// ============================================
+// Product Form State
+// ============================================
 const isFormOpen = ref(false);
 const editingProductId = ref<string | null>(null);
 const formData = ref({
   name: "",
   price: 0,
-  category: "",
-  shortDescription: "",
-  details: "",
-  material: "",
-  origin: "",
-  image: "",
-  stock: 0,
+  categoryId: "",
+  description: "",
+  imageUrl: "",
+  isListed: false,
 });
 
 // Image Upload State
@@ -50,21 +70,36 @@ const uploadError = ref(false);
 const pendingFile = ref<File | null>(null);
 const previewUrl = ref<string | null>(null);
 
+// ============================================
+// Variant Form State
+// ============================================
+const isVariantFormOpen = ref(false);
+const editingVariantId = ref<string | null>(null);
+const currentProductForVariant = ref<Product | null>(null);
+const variantFormData = ref({
+  color: "",
+  size: "",
+  stock: 0,
+});
+
+// ============================================
 // Category Form State
+// ============================================
 const isCategoryFormOpen = ref(false);
 const editingCategoryId = ref<string | null>(null);
 const categoryFormData = ref({
   name: "",
   description: "",
 });
+const categoryError = ref("");
 
-// Category CRUD Handlers
+// ============================================
+// Category CRUD
+// ============================================
 const openNewCategoryForm = () => {
   editingCategoryId.value = null;
-  categoryFormData.value = {
-    name: "",
-    description: "",
-  };
+  categoryFormData.value = { name: "", description: "" };
+  categoryError.value = "";
   isCategoryFormOpen.value = true;
 };
 
@@ -74,15 +109,25 @@ const openEditCategoryForm = (category: Category) => {
     name: category.name,
     description: category.description || "",
   };
+  categoryError.value = "";
   isCategoryFormOpen.value = true;
 };
 
 const closeCategoryForm = () => {
   isCategoryFormOpen.value = false;
   editingCategoryId.value = null;
+  categoryError.value = "";
+};
+
+const validateCategoryName = (name: string): boolean => {
+  return /^[A-Za-z\s]+$/.test(name);
 };
 
 const submitCategoryForm = async () => {
+  if (!validateCategoryName(categoryFormData.value.name)) {
+    categoryError.value = "分類名稱只能使用英文字母";
+    return;
+  }
   try {
     if (editingCategoryId.value) {
       await emit(
@@ -96,6 +141,7 @@ const submitCategoryForm = async () => {
     closeCategoryForm();
   } catch (error) {
     console.error("Failed to save category:", error);
+    categoryError.value = "儲存失敗，請重試";
   }
 };
 
@@ -109,19 +155,23 @@ const confirmDeleteCategory = async (category: Category) => {
   }
 };
 
-// Open form for new product
+// ============================================
+// Product CRUD
+// ============================================
+const getCategoryName = (categoryId: string): string => {
+  const cat = props.categories.find((c) => c.id === categoryId);
+  return cat?.name || categoryId;
+};
+
 const openNewProductForm = () => {
   editingProductId.value = null;
   formData.value = {
     name: "",
     price: 0,
-    category: props.categories[0]?.name || "",
-    shortDescription: "",
-    details: "",
-    material: "",
-    origin: "",
-    image: "",
-    stock: 0,
+    categoryId: props.categories[0]?.id || "",
+    description: "",
+    imageUrl: "",
+    isListed: false,
   };
   previewUrl.value = null;
   pendingFile.value = null;
@@ -129,27 +179,22 @@ const openNewProductForm = () => {
   isFormOpen.value = true;
 };
 
-// Open form for editing
 const openEditForm = (product: Product) => {
   editingProductId.value = product.id;
   formData.value = {
     name: product.name,
     price: product.price,
-    category: product.category,
-    shortDescription: product.shortDescription,
-    details: product.details,
-    material: product.material,
-    origin: product.origin,
-    image: product.image,
-    stock: product.stock || 0,
+    categoryId: product.categoryId,
+    description: product.description,
+    imageUrl: product.imageUrl,
+    isListed: product.isListed,
   };
-  previewUrl.value = product.image || null;
+  previewUrl.value = product.imageUrl || null;
   pendingFile.value = null;
   uploadError.value = false;
   isFormOpen.value = true;
 };
 
-// Close form
 const closeForm = () => {
   isFormOpen.value = false;
   editingProductId.value = null;
@@ -158,27 +203,22 @@ const closeForm = () => {
   uploadError.value = false;
 };
 
-// Handle file selection
 const handleFileSelect = (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (input.files && input.files[0]) {
     pendingFile.value = input.files[0];
-    // Create local preview
     previewUrl.value = URL.createObjectURL(input.files[0]);
     uploadError.value = false;
   }
 };
 
-// Upload image with optimistic UI
 const uploadImage = async () => {
   if (!pendingFile.value) return;
-
   isUploading.value = true;
   uploadError.value = false;
-
   try {
     const url = await emit("upload-image", pendingFile.value);
-    formData.value.image = url;
+    formData.value.imageUrl = url;
     previewUrl.value = url;
     pendingFile.value = null;
   } catch (error) {
@@ -189,24 +229,23 @@ const uploadImage = async () => {
   }
 };
 
-// Submit form
 const submitForm = async () => {
-  // If there's a pending file, upload first
   if (pendingFile.value && !uploadError.value) {
     await uploadImage();
-    if (uploadError.value) return; // Stop if upload failed
+    if (uploadError.value) return;
   }
 
+  const category = props.categories.find(
+    (c) => c.id === formData.value.categoryId
+  );
   const productData = {
     name: formData.value.name,
     price: formData.value.price,
-    category: formData.value.category,
-    shortDescription: formData.value.shortDescription,
-    details: formData.value.details,
-    material: formData.value.material,
-    origin: formData.value.origin,
-    image: formData.value.image,
-    stock: formData.value.stock,
+    categoryId: formData.value.categoryId,
+    category: category?.name || "",
+    description: formData.value.description,
+    imageUrl: formData.value.imageUrl,
+    isListed: formData.value.isListed,
   };
 
   try {
@@ -221,7 +260,6 @@ const submitForm = async () => {
   }
 };
 
-// Delete product with confirmation
 const confirmDelete = async (product: Product) => {
   if (confirm(`確定要刪除 "${product.name}" 嗎？此操作無法復原。`)) {
     try {
@@ -230,6 +268,78 @@ const confirmDelete = async (product: Product) => {
       console.error("Failed to delete:", error);
     }
   }
+};
+
+// ============================================
+// Variant CRUD
+// ============================================
+const openVariantManager = (product: Product) => {
+  currentProductForVariant.value = product;
+  editingVariantId.value = null;
+  variantFormData.value = { color: "", size: "", stock: 0 };
+  isVariantFormOpen.value = true;
+};
+
+const closeVariantForm = () => {
+  isVariantFormOpen.value = false;
+  currentProductForVariant.value = null;
+  editingVariantId.value = null;
+};
+
+const editVariant = (variant: ProductVariant) => {
+  editingVariantId.value = variant.id;
+  variantFormData.value = {
+    color: variant.color,
+    size: variant.size,
+    stock: variant.stock,
+  };
+};
+
+const cancelEditVariant = () => {
+  editingVariantId.value = null;
+  variantFormData.value = { color: "", size: "", stock: 0 };
+};
+
+const submitVariantForm = async () => {
+  if (!currentProductForVariant.value) return;
+  try {
+    if (editingVariantId.value) {
+      await emit(
+        "update-variant",
+        editingVariantId.value,
+        variantFormData.value
+      );
+    } else {
+      await emit(
+        "create-variant",
+        currentProductForVariant.value.id,
+        variantFormData.value
+      );
+    }
+    cancelEditVariant();
+  } catch (error) {
+    console.error("Failed to save variant:", error);
+  }
+};
+
+const confirmDeleteVariant = async (variant: ProductVariant) => {
+  if (confirm(`確定要刪除規格 "${variant.color} / ${variant.size}" 嗎？`)) {
+    try {
+      await emit("delete-variant", variant.id);
+    } catch (error) {
+      console.error("Failed to delete variant:", error);
+    }
+  }
+};
+
+// Helper: 取得訂單項目顯示文字
+const getOrderItemsText = (order: Order): string => {
+  return order.items
+    .map(
+      (item) =>
+        `${item.product.name} (${item.variant.color}/${item.variant.size}) x${item.quantity}`
+    )
+    .join(", ");
 };
 </script>
 
@@ -284,7 +394,8 @@ const confirmDelete = async (product: Product) => {
                   <th class="pb-4 font-normal">Product</th>
                   <th class="pb-4 font-normal">Category</th>
                   <th class="pb-4 font-normal">Price</th>
-                  <th class="pb-4 font-normal">Stock</th>
+                  <th class="pb-4 font-normal">Total Stock</th>
+                  <th class="pb-4 font-normal">Status</th>
                   <th class="pb-4 font-normal">Actions</th>
                 </tr>
               </thead>
@@ -296,21 +407,20 @@ const confirmDelete = async (product: Product) => {
                 >
                   <td class="py-4 pr-4">
                     <div class="flex items-center gap-4">
-                      <!-- Image or Placeholder -->
                       <div
                         class="w-10 h-10 bg-stone-200 flex items-center justify-center overflow-hidden"
                       >
                         <img
-                          v-if="product.image"
-                          :src="product.image"
+                          v-if="product.imageUrl"
+                          :src="product.imageUrl"
                           class="w-full h-full object-cover"
                           alt=""
                         />
                         <div
                           v-else
-                          class="text-[8px] text-stone-400 text-center p-1 leading-tight"
+                          class="text-[8px] text-stone-400 text-center p-1"
                         >
-                          {{ product.name.substring(0, 10) }}
+                          {{ product.name.substring(0, 8) }}
                         </div>
                       </div>
                       <span class="font-medium text-sumi">{{
@@ -318,22 +428,42 @@ const confirmDelete = async (product: Product) => {
                       }}</span>
                     </div>
                   </td>
-                  <td class="py-4">{{ product.category }}</td>
+                  <td class="py-4">
+                    {{ getCategoryName(product.categoryId) }}
+                  </td>
                   <td class="py-4">${{ product.price }}</td>
                   <td class="py-4">
                     <span
                       class="px-2 py-1 min-w-[40px] text-center inline-block"
                       :class="
-                        (product.stock || 0) < 5
+                        (product.totalStock || 0) < 5
                           ? 'bg-red-50 text-red-700'
                           : 'bg-stone-100'
                       "
                     >
-                      {{ product.stock || 0 }}
+                      {{ product.totalStock || 0 }}
+                    </span>
+                  </td>
+                  <td class="py-4">
+                    <span
+                      class="px-2 py-1 text-xs"
+                      :class="
+                        product.isListed
+                          ? 'bg-green-50 text-green-700'
+                          : 'bg-stone-100 text-stone-500'
+                      "
+                    >
+                      {{ product.isListed ? "上架中" : "未上架" }}
                     </span>
                   </td>
                   <td class="py-4">
                     <div class="flex items-center gap-2">
+                      <button
+                        @click="openVariantManager(product)"
+                        class="px-3 py-1 text-xs border border-blue-300 text-blue-600 hover:bg-blue-50 transition-colors"
+                      >
+                        規格
+                      </button>
                       <button
                         @click="openEditForm(product)"
                         class="px-3 py-1 text-xs border border-stone-300 hover:bg-stone-100 transition-colors"
@@ -374,7 +504,7 @@ const confirmDelete = async (product: Product) => {
                 <tr
                   class="text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200"
                 >
-                  <th class="pb-4 font-normal">Name</th>
+                  <th class="pb-4 font-normal">Name (English Only)</th>
                   <th class="pb-4 font-normal">Description</th>
                   <th class="pb-4 font-normal">Actions</th>
                 </tr>
@@ -425,62 +555,63 @@ const confirmDelete = async (product: Product) => {
             <div
               v-for="order in orders"
               :key="order.id"
-              class="border border-stone-200 p-6 flex flex-col md:flex-row justify-between gap-6 hover:shadow-md transition-shadow"
+              class="border border-stone-200 p-6 hover:shadow-md transition-shadow"
             >
-              <div class="space-y-2">
-                <div class="flex items-center gap-4">
-                  <span class="font-serif text-lg text-sumi"
-                    >Order #{{ order.id }}</span
-                  >
-                  <span class="text-xs text-stone-400">{{ order.date }}</span>
+              <div class="flex flex-col md:flex-row justify-between gap-6">
+                <div class="space-y-2">
+                  <div class="flex items-center gap-4">
+                    <span class="font-serif text-lg text-sumi"
+                      >Order #{{ order.id }}</span
+                    >
+                    <span class="text-xs text-stone-400">{{
+                      order.date || order.createdAt
+                    }}</span>
+                  </div>
+                  <div class="text-sm text-stone-600">
+                    <p class="font-medium">
+                      {{ order.shippingDetails?.fullName }}
+                    </p>
+                    <p class="text-stone-400 text-xs">
+                      {{ order.shippingDetails?.email }}
+                    </p>
+                  </div>
+                  <div class="text-xs text-stone-500 mt-2">
+                    {{ getOrderItemsText(order) }}
+                  </div>
                 </div>
-                <div class="text-sm text-stone-600">
-                  <p class="font-medium">
-                    {{ order.shippingDetails?.fullName }}
-                  </p>
-                  <p class="text-stone-400 text-xs">
-                    {{ order.shippingDetails?.email }}
-                  </p>
-                </div>
-                <div class="text-xs text-stone-500 mt-2">
-                  {{
-                    order.items
-                      .map((i) => `${i.name} (x${i.quantity})`)
-                      .join(", ")
-                  }}
+
+                <div class="flex flex-col items-end gap-4 min-w-[200px]">
+                  <span class="font-serif text-xl">${{ order.total }}</span>
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="text-xs uppercase tracking-widest text-stone-400"
+                      >Status:</span
+                    >
+                    <select
+                      :value="order.status"
+                      @change="
+                        emit(
+                          'update-order-status',
+                          order.id,
+                          ($event.target as HTMLSelectElement)
+                            .value as OrderStatus
+                        )
+                      "
+                      class="bg-stone-50 border border-stone-200 text-xs uppercase p-2 focus:outline-none focus:border-sumi"
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="PAID">Paid</option>
+                      <option value="SHIPPED">Shipped</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div class="flex flex-col items-end gap-4 min-w-[200px]">
-                <span class="font-serif text-xl">${{ order.total }}</span>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs uppercase tracking-widest text-stone-400"
-                    >Status:</span
-                  >
-                  <select
-                    :value="order.status"
-                    @change="
-                      emit(
-                        'update-order-status',
-                        order.id,
-                        ($event.target as HTMLSelectElement)
-                          .value as OrderStatus
-                      )
-                    "
-                    class="bg-stone-50 border border-stone-200 text-xs uppercase p-2 focus:outline-none focus:border-sumi"
-                  >
-                    <option value="Processing">Processing</option>
-                    <option value="Shipped">Shipped</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Payment Note Section (User's remittance info) -->
               <div
                 v-if="order.paymentNote"
-                class="w-full mt-4 pt-4 border-t border-stone-200"
+                class="mt-4 pt-4 border-t border-stone-200"
               >
                 <div class="flex items-start gap-2">
                   <span
@@ -514,7 +645,7 @@ const confirmDelete = async (product: Product) => {
               :key="inquiry.id"
               class="p-6 border"
               :class="
-                inquiry.status === 'PENDING'
+                inquiry.status === 'UNREAD'
                   ? 'border-sumi/20 bg-stone-50'
                   : 'border-stone-100 opacity-60'
               "
@@ -524,7 +655,9 @@ const confirmDelete = async (product: Product) => {
                   <h3 class="font-serif text-sumi">{{ inquiry.name }}</h3>
                   <p class="text-xs text-stone-400">{{ inquiry.email }}</p>
                 </div>
-                <span class="text-xs text-stone-400">{{ inquiry.date }}</span>
+                <span class="text-xs text-stone-400">{{
+                  inquiry.date || inquiry.createdAt
+                }}</span>
               </div>
               <p
                 class="text-sm text-stone-600 font-light mb-4 leading-relaxed bg-white p-4 border border-stone-100"
@@ -533,7 +666,7 @@ const confirmDelete = async (product: Product) => {
               </p>
               <div class="flex justify-end">
                 <button
-                  v-if="inquiry.status === 'PENDING'"
+                  v-if="inquiry.status !== 'REPLIED'"
                   @click="emit('reply-inquiry', inquiry.id)"
                   class="px-4 py-2 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800"
                 >
@@ -575,13 +708,18 @@ const confirmDelete = async (product: Product) => {
           <div class="space-y-2">
             <label
               class="block text-xs uppercase tracking-widest text-stone-500"
-              >Name *</label
+              >Name * (English Only)</label
             >
             <input
               v-model="categoryFormData.name"
               required
+              pattern="^[A-Za-z\s]+$"
               class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi"
+              placeholder="e.g. Apparel, Kitchen"
             />
+            <p v-if="categoryError" class="text-xs text-red-600">
+              {{ categoryError }}
+            </p>
           </div>
 
           <div class="space-y-2">
@@ -637,14 +775,13 @@ const confirmDelete = async (product: Product) => {
         </div>
 
         <form @submit.prevent="submitForm" class="space-y-6">
-          <!-- Image Upload Section -->
+          <!-- Image Upload -->
           <div class="space-y-2">
             <label
               class="block text-xs uppercase tracking-widest text-stone-500"
               >Product Image</label
             >
             <div class="flex gap-4 items-start">
-              <!-- Image Preview / Placeholder -->
               <div
                 class="w-32 h-32 bg-stone-200 flex items-center justify-center overflow-hidden relative"
               >
@@ -658,12 +795,7 @@ const confirmDelete = async (product: Product) => {
                   <p class="text-xs text-stone-500 font-medium">
                     {{ formData.name || "Product" }}
                   </p>
-                  <p class="text-[10px] text-stone-400 mt-1">
-                    {{ formData.shortDescription || "Description" }}
-                  </p>
                 </div>
-
-                <!-- Upload Animation Overlay -->
                 <div
                   v-if="isUploading"
                   class="absolute inset-0 bg-white/80 flex items-center justify-center"
@@ -673,7 +805,6 @@ const confirmDelete = async (product: Product) => {
                   ></div>
                 </div>
               </div>
-
               <div class="flex-1 space-y-2">
                 <input
                   type="file"
@@ -681,25 +812,21 @@ const confirmDelete = async (product: Product) => {
                   @change="handleFileSelect"
                   class="block w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:border file:border-stone-300 file:text-xs file:bg-white file:text-stone-700 hover:file:bg-stone-50"
                 />
-
-                <!-- Upload Error with Retry Button -->
                 <div v-if="uploadError" class="flex items-center gap-2">
                   <span class="text-xs text-red-600">上傳失敗</span>
                   <button
                     type="button"
                     @click="uploadImage"
-                    class="px-3 py-1 text-xs bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    class="px-3 py-1 text-xs bg-red-600 text-white hover:bg-red-700"
                   >
                     重新上傳
                   </button>
                 </div>
-
-                <!-- Pending File Indicator -->
                 <p
                   v-if="pendingFile && !uploadError && !isUploading"
                   class="text-xs text-stone-500"
                 >
-                  Selected: {{ pendingFile.name }} (will upload on save)
+                  Selected: {{ pendingFile.name }}
                 </p>
               </div>
             </div>
@@ -740,15 +867,11 @@ const confirmDelete = async (product: Product) => {
                 >Category *</label
               >
               <select
-                v-model="formData.category"
+                v-model="formData.categoryId"
                 required
                 class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi bg-white"
               >
-                <option
-                  v-for="cat in categories"
-                  :key="cat.id"
-                  :value="cat.name"
-                >
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                   {{ cat.name }}
                 </option>
               </select>
@@ -756,61 +879,31 @@ const confirmDelete = async (product: Product) => {
             <div class="space-y-2">
               <label
                 class="block text-xs uppercase tracking-widest text-stone-500"
-                >Stock</label
+                >Status</label
               >
-              <input
-                v-model.number="formData.stock"
-                type="number"
-                min="0"
-                class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi"
-              />
+              <label
+                class="flex items-center gap-3 p-3 border border-stone-300 cursor-pointer hover:bg-stone-50"
+              >
+                <input
+                  type="checkbox"
+                  v-model="formData.isListed"
+                  class="accent-sumi w-4 h-4"
+                />
+                <span class="text-sm">上架 (Listed)</span>
+              </label>
             </div>
           </div>
 
           <div class="space-y-2">
             <label
               class="block text-xs uppercase tracking-widest text-stone-500"
-              >Short Description</label
-            >
-            <input
-              v-model="formData.shortDescription"
-              class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label
-              class="block text-xs uppercase tracking-widest text-stone-500"
-              >Details</label
+              >Description</label
             >
             <textarea
-              v-model="formData.details"
-              rows="3"
+              v-model="formData.description"
+              rows="4"
               class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi resize-none"
             ></textarea>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label
-                class="block text-xs uppercase tracking-widest text-stone-500"
-                >Material</label
-              >
-              <input
-                v-model="formData.material"
-                class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi"
-              />
-            </div>
-            <div class="space-y-2">
-              <label
-                class="block text-xs uppercase tracking-widest text-stone-500"
-                >Origin</label
-              >
-              <input
-                v-model="formData.origin"
-                class="w-full border border-stone-300 p-3 focus:outline-none focus:border-sumi"
-              />
-            </div>
           </div>
 
           <div class="flex justify-end gap-4 pt-4 border-t border-stone-200">
@@ -824,7 +917,7 @@ const confirmDelete = async (product: Product) => {
             <button
               type="submit"
               :disabled="isUploading"
-              class="px-6 py-3 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-6 py-3 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800 disabled:opacity-50"
             >
               {{
                 isUploading
@@ -836,6 +929,153 @@ const confirmDelete = async (product: Product) => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Variant Manager Modal -->
+    <div
+      v-if="isVariantFormOpen && currentProductForVariant"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      @click.self="closeVariantForm"
+    >
+      <div
+        class="bg-white max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-xl"
+      >
+        <div class="flex justify-between items-center mb-8">
+          <div>
+            <h2 class="font-serif text-2xl text-sumi">規格管理</h2>
+            <p class="text-sm text-stone-500 mt-1">
+              {{ currentProductForVariant.name }}
+            </p>
+          </div>
+          <button
+            @click="closeVariantForm"
+            class="text-stone-400 hover:text-sumi text-2xl"
+          >
+            &times;
+          </button>
+        </div>
+
+        <!-- Existing Variants Table -->
+        <div class="mb-8">
+          <h3 class="text-sm uppercase tracking-widest text-stone-500 mb-4">
+            現有規格
+          </h3>
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr
+                class="text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200"
+              >
+                <th class="pb-3 font-normal">SKU</th>
+                <th class="pb-3 font-normal">Color</th>
+                <th class="pb-3 font-normal">Size</th>
+                <th class="pb-3 font-normal">Stock</th>
+                <th class="pb-3 font-normal">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="text-sm">
+              <tr
+                v-for="variant in currentProductForVariant.variants"
+                :key="variant.id"
+                class="border-b border-stone-50"
+              >
+                <td class="py-3 font-mono text-xs text-stone-500">
+                  {{ variant.skuCode }}
+                </td>
+                <td class="py-3">{{ variant.color }}</td>
+                <td class="py-3">{{ variant.size }}</td>
+                <td class="py-3">
+                  <span
+                    class="px-2 py-1"
+                    :class="
+                      variant.stock < 5
+                        ? 'bg-red-50 text-red-700'
+                        : 'bg-stone-100'
+                    "
+                  >
+                    {{ variant.stock }}
+                  </span>
+                </td>
+                <td class="py-3">
+                  <div class="flex items-center gap-2">
+                    <button
+                      @click="editVariant(variant)"
+                      class="px-2 py-1 text-xs border border-stone-300 hover:bg-stone-100"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      @click="confirmDeleteVariant(variant)"
+                      class="px-2 py-1 text-xs border border-red-300 text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!currentProductForVariant.variants?.length">
+                <td colspan="5" class="py-4 text-center text-stone-400 italic">
+                  尚無規格，請新增
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Add/Edit Variant Form -->
+        <div class="border-t border-stone-200 pt-6">
+          <h3 class="text-sm uppercase tracking-widest text-stone-500 mb-4">
+            {{ editingVariantId ? "編輯規格" : "新增規格" }}
+          </h3>
+          <form
+            @submit.prevent="submitVariantForm"
+            class="flex gap-4 items-end flex-wrap"
+          >
+            <div class="space-y-1">
+              <label class="block text-xs text-stone-500">Color *</label>
+              <input
+                v-model="variantFormData.color"
+                required
+                placeholder="e.g. White, Black"
+                class="w-32 border border-stone-300 p-2 text-sm focus:outline-none focus:border-sumi"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="block text-xs text-stone-500">Size *</label>
+              <input
+                v-model="variantFormData.size"
+                required
+                placeholder="e.g. S, M, L, Free"
+                class="w-24 border border-stone-300 p-2 text-sm focus:outline-none focus:border-sumi"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="block text-xs text-stone-500">Stock *</label>
+              <input
+                v-model.number="variantFormData.stock"
+                type="number"
+                min="0"
+                required
+                class="w-20 border border-stone-300 p-2 text-sm focus:outline-none focus:border-sumi"
+              />
+            </div>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-sumi text-washi text-xs uppercase tracking-widest hover:bg-stone-800"
+            >
+              {{ editingVariantId ? "Update" : "+ Add" }}
+            </button>
+            <button
+              v-if="editingVariantId"
+              type="button"
+              @click="cancelEditVariant"
+              class="px-4 py-2 border border-stone-300 text-stone-600 text-xs uppercase hover:bg-stone-50"
+            >
+              Cancel
+            </button>
+          </form>
+          <p class="text-xs text-stone-400 mt-3">SKU 編碼將自動產生</p>
+        </div>
       </div>
     </div>
   </div>

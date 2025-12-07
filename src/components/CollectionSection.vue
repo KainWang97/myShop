@@ -21,12 +21,13 @@ onMounted(() => {
 
 const filteredProducts = computed(() => {
   return props.products.filter((product) => {
-    // Hide sold out items from collection list
-    const hasStock = (product.stock || 0) > 0;
+    // 只顯示已上架且有庫存的商品
+    const isListed = product.isListed !== false;
+    const hasStock = (product.totalStock || 0) > 0;
     const matchesCategory =
       activeCategory.value === "All" ||
       product.category === activeCategory.value;
-    return hasStock && matchesCategory;
+    return isListed && hasStock && matchesCategory;
   });
 });
 </script>
