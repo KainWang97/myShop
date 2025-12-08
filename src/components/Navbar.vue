@@ -92,34 +92,58 @@ const isAdmin = computed(() => props.user?.role === "ADMIN");
           CONTACT
         </button>
 
+        <!-- Account Icon -->
         <button
           @click="user ? emit('open-dashboard') : emit('open-auth')"
-          class="hover:text-sumi transition-colors uppercase"
+          class="hover:text-sumi transition-colors group relative"
+          :title="user ? (isAdmin ? 'Admin Dashboard' : 'Account') : 'Login'"
         >
-          {{ user ? (isAdmin ? "Admin" : "Account") : "Login" }}
+          <svg
+            class="w-6 h-6 stroke-current stroke-1 group-hover:stroke-2 transition-all"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
         </button>
 
+        <!-- Logout (Text Only - Keep visible if logged in) -->
         <button
           v-if="user"
           @click="handleLogout"
           :disabled="isLoggingOut"
-          class="hover:text-sumi transition-colors uppercase flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+          class="hover:text-sumi transition-colors uppercase text-xs tracking-widest flex items-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           <span
             v-if="isLoggingOut"
             class="w-4 h-4 border-2 border-stone-400 border-t-transparent rounded-full animate-spin"
           ></span>
-          {{ isLoggingOut ? "Logging out..." : "Logout" }}
+          {{ isLoggingOut ? "..." : "LOGOUT" }}
         </button>
 
+        <!-- Cart Icon -->
         <button
           @click="emit('open-cart')"
-          class="hover:text-sumi transition-colors uppercase flex items-center gap-2"
+          class="hover:text-sumi transition-colors flex items-center gap-1 group"
         >
-          Cart
+          <svg
+            class="w-6 h-6 stroke-current stroke-1 group-hover:stroke-2 transition-all"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+            />
+          </svg>
           <span
             v-if="cartCount > 0"
-            class="flex items-center justify-center w-5 h-5 bg-sumi text-washi text-[10px] rounded-full"
+            class="text-sm font-light text-stone-600 group-hover:text-sumi transition-colors translate-y-[2px]"
           >
             {{ cartCount }}
           </span>

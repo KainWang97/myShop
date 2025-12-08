@@ -239,5 +239,5 @@ export const PRODUCTS: Product[] = [
   },
 ];
 
-// 季節精選商品索引 (0-based)
-export const SEASONAL_INDICES = [1, 3, 5];
+// 新品上架精選商品 IDs (由管理員選擇，最多5個)
+export const INITIAL_FEATURED_IDS: string[] = ["2", "4", "6"];

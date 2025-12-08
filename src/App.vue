@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { SEASONAL_INDICES } from "./constants";
+import { ref, onMounted, onUnmounted } from "vue";
 import { api } from "./services/api";
 import type {
   Product,
@@ -17,7 +16,7 @@ import type {
 
 import Navbar from "./components/Navbar.vue";
 import Hero from "./components/Hero.vue";
-import SeasonalSection from "./components/SeasonalSection.vue";
+import NewArrivalsSection from "./components/NewArrivalsSection.vue";
 import CollectionSection from "./components/CollectionSection.vue";
 import ProductDetail from "./components/ProductDetail.vue";
 import ContactSection from "./components/ContactSection.vue";
@@ -28,6 +27,7 @@ import CheckoutPage from "./components/CheckoutPage.vue";
 import AdminDashboard from "./components/AdminDashboard.vue";
 import Footer from "./components/Footer.vue";
 import ConfirmModal from "./components/ConfirmModal.vue";
+import CartToast from "./components/CartToast.vue";
 import { useConfirm } from "./composables/useConfirm";
 
 // Confirm Modal
@@ -54,18 +54,15 @@ const isAuthOpen = ref(false);
 const isCartOpen = ref(false);
 const isDashboardOpen = ref(false);
 const isScrolled = ref(false);
+const showCartToast = ref(false);
 
 // User Data State - CartItem 現在以 variant 為單位
 const cart = ref<CartItem[]>([]);
 const user = ref<User | null>(null);
 
-// Seasonal Products
-const seasonalProducts = computed(
-  () =>
-    SEASONAL_INDICES.map((index) => products.value[index]).filter(
-      Boolean
-    ) as Product[]
-);
+// New Arrivals (Featured) Products
+const featuredProductIds = ref<string[]>([]);
+const newArrivalsProducts = ref<Product[]>([]);
 
 // Scroll Detection
 const handleScroll = () => {
@@ -74,25 +71,59 @@ const handleScroll = () => {
 
 onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
+  
+  // 監聽登出事件
+  window.addEventListener("auth:logout", handleLogout);
 
   try {
     isLoading.value = true;
     loadError.value = null;
 
-    const [productsData, ordersData, inquiriesData, categoriesData] =
-      await Promise.all([
-        api.products.getAll(),
-        api.orders.getAll(),
-        api.inquiries.getAll(),
-        api.categories.getAll(),
-      ]);
+    // 嘗試自動登入（如果有 token）
+    try {
+      const currentUser = await api.auth.getMe();
+      if (currentUser) {
+        user.value = currentUser;
+      }
+    } catch (error) {
+      // Token 無效或過期，清除 token
+      console.log("Auto-login failed, token may be expired");
+    }
+
+    const [productsData, categoriesData] = await Promise.all([
+      api.products.getAll(),
+      api.categories.getAll(),
+    ]);
 
     products.value = productsData;
-    allOrders.value = ordersData;
-    inquiries.value = inquiriesData;
     categories.value = categoriesData;
 
-    // No auto-login - users must login manually now
+    // 如果使用者已登入，載入訂單和詢問
+    if (user.value) {
+      try {
+        if (user.value.role === "ADMIN") {
+          const [ordersData, inquiriesData] = await Promise.all([
+            api.orders.getAll(),
+            api.inquiries.getAll(),
+          ]);
+          allOrders.value = ordersData;
+          inquiries.value = inquiriesData;
+        } else {
+          const ordersData = await api.orders.getMy();
+          allOrders.value = ordersData;
+        }
+      } catch (error) {
+        console.error("Failed to load user data:", error);
+      }
+    }
+
+    // Load featured products
+    const [featuredIds, featuredProducts] = await Promise.all([
+      api.featured.getAll(),
+      api.featured.getProducts(),
+    ]);
+    featuredProductIds.value = featuredIds;
+    newArrivalsProducts.value = featuredProducts;
   } catch (error) {
     console.error("Failed to load data:", error);
     loadError.value = "載入資料失敗，請重新整理頁面";
@@ -103,6 +134,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
+  window.removeEventListener("auth:logout", handleLogout);
 });
 
 // ============================================
@@ -166,7 +198,8 @@ const handleAddToCart = (product: Product, variant: ProductVariant) => {
       quantity: 1,
     });
   }
-  isCartOpen.value = true;
+  // Show toast instead of opening cart
+  showCartToast.value = true;
 };
 
 const handleRemoveFromCart = (variantId: string) => {
@@ -290,10 +323,16 @@ const handleLogin = (loggedInUser: User) => {
   }
 };
 
-const handleLogout = () => {
-  user.value = null;
-  isDashboardOpen.value = false;
-  handleHomeClick();
+const handleLogout = async () => {
+  try {
+    await api.auth.logout();
+  } catch (error) {
+    console.error("Logout error:", error);
+  } finally {
+    user.value = null;
+    isDashboardOpen.value = false;
+    handleHomeClick();
+  }
 };
 
 // ============================================
@@ -505,6 +544,24 @@ const handleDeleteCategory = async (id: string) => {
     throw error;
   }
 };
+
+// ============================================
+// Admin: Featured Products
+// ============================================
+const handleToggleFeatured = async (productId: string) => {
+  try {
+    await api.featured.toggle(productId);
+    // Reload featured data
+    const [ids, products] = await Promise.all([
+      api.featured.getAll(),
+      api.featured.getProducts(),
+    ]);
+    featuredProductIds.value = ids;
+    newArrivalsProducts.value = products;
+  } catch (error) {
+    console.error("Failed to toggle featured:", error);
+  }
+};
 </script>
 
 <template>
@@ -528,8 +585,8 @@ const handleDeleteCategory = async (id: string) => {
     <main class="flex-grow pt-[89px]">
       <div v-if="currentView === 'HOME'">
         <Hero />
-        <SeasonalSection
-          :products="seasonalProducts"
+        <NewArrivalsSection
+          :products="newArrivalsProducts"
           @product-click="handleProductClick"
         />
       </div>
@@ -562,6 +619,7 @@ const handleDeleteCategory = async (id: string) => {
           :categories="categories"
           :orders="allOrders"
           :inquiries="inquiries"
+          :featuredProductIds="featuredProductIds"
           @update-order-status="handleUpdateOrderStatus"
           @reply-inquiry="handleReplyInquiry"
           @create-product="handleCreateProduct"
@@ -574,6 +632,7 @@ const handleDeleteCategory = async (id: string) => {
           @create-variant="handleCreateVariant"
           @update-variant="handleUpdateVariant"
           @delete-variant="handleDeleteVariant"
+          @toggle-featured="handleToggleFeatured"
         />
       </div>
 
@@ -635,5 +694,8 @@ const handleDeleteCategory = async (id: string) => {
       @confirm="handleConfirm"
       @cancel="handleCancel"
     />
+
+    <!-- Cart Toast -->
+    <CartToast :show="showCartToast" @close="showCartToast = false" />
   </div>
 </template>

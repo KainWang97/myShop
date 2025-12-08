@@ -17,6 +17,7 @@ const props = defineProps<{
   categories: Category[];
   orders: Order[];
   inquiries: Inquiry[];
+  featuredProductIds: string[];
 }>();
 
 const emit = defineEmits<{
@@ -47,6 +48,7 @@ const emit = defineEmits<{
     data: Partial<ProductVariant>
   ): Promise<ProductVariant | null>;
   (e: "delete-variant", id: string): Promise<boolean>;
+  (e: "toggle-featured", productId: string): Promise<void>;
 }>();
 
 const activeTab = ref<"INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES">(
@@ -420,6 +422,25 @@ const getOrderItemsText = (order: Order): string => {
             </button>
           </div>
 
+          <!-- Featured Products Counter -->
+          <div class="flex items-center gap-4 pb-4 border-b border-stone-100">
+            <span class="text-sm text-stone-500">
+              新品上架：
+              <span
+                :class="
+                  featuredProductIds.length >= 5
+                    ? 'text-red-600 font-medium'
+                    : 'text-sumi font-medium'
+                "
+              >
+                {{ featuredProductIds.length }}/5
+              </span>
+            </span>
+            <span class="text-xs text-stone-400">
+              點擊「⭐」將商品加入首頁新品區塊
+            </span>
+          </div>
+
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
@@ -431,6 +452,7 @@ const getOrderItemsText = (order: Order): string => {
                   <th class="pb-4 font-normal">Price</th>
                   <th class="pb-4 font-normal">Total Stock</th>
                   <th class="pb-4 font-normal">Status</th>
+                  <th class="pb-4 font-normal text-center">新品</th>
                   <th class="pb-4 font-normal">Actions</th>
                 </tr>
               </thead>
@@ -490,6 +512,25 @@ const getOrderItemsText = (order: Order): string => {
                     >
                       {{ product.isListed ? "上架中" : "未上架" }}
                     </span>
+                  </td>
+                  <td class="py-4 text-center">
+                    <button
+                      @click="emit('toggle-featured', product.id)"
+                      :disabled="
+                        !featuredProductIds.includes(product.id) &&
+                        featuredProductIds.length >= 5
+                      "
+                      class="text-xl transition-all hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
+                      :title="
+                        featuredProductIds.includes(product.id)
+                          ? '從新品移除'
+                          : featuredProductIds.length >= 5
+                          ? '已達上限 5 個'
+                          : '設為新品'
+                      "
+                    >
+                      {{ featuredProductIds.includes(product.id) ? "⭐" : "☆" }}
+                    </button>
                   </td>
                   <td class="py-4">
                     <div class="flex items-center gap-2">

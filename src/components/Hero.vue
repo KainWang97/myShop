@@ -18,24 +18,11 @@
 
     <!-- Content -->
     <div class="relative z-10 text-center space-y-6 max-w-4xl px-6">
-      <p
+      <h1
         class="text-stone-700 tracking-[0.3em] text-m uppercase animate-fade-in-up"
       >
         Choose a tasteful life
-      </p>
-      <h1
-        class="text-5xl md:text-7xl font-serif text-sumi tracking-widest leading-tight"
-      >
-        生活即<br />
-        <span class="text-4xl md:text-6xl block mt-4">選擇</span>
       </h1>
-      <div class="w-12 h-[1px] bg-stone-800 mx-auto mt-8"></div>
-      <p
-        class="text-stone-600 font-light text-m tracking-widest pt-4 leading-loose"
-      >
-        品味你所選擇。<br />
-        選擇有品味的活著。
-      </p>
     </div>
 
     <!-- Scroll Indicator -->
