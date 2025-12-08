@@ -69,36 +69,36 @@ const handleScroll = () => {
   isScrolled.value = window.scrollY > 50;
 };
 
+const reloadProductsForCurrentRole = async () => {
+  if (user.value?.role === "ADMIN") {
+    products.value = await api.products.getAllAdmin();
+  } else {
+    products.value = await api.products.getAll();
+  }
+};
+
 onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
-  
-  // 監聽登出事件
   window.addEventListener("auth:logout", handleLogout);
 
   try {
     isLoading.value = true;
     loadError.value = null;
 
-    // 嘗試自動登入（如果有 token）
     try {
       const currentUser = await api.auth.getMe();
       if (currentUser) {
         user.value = currentUser;
       }
     } catch (error) {
-      // Token 無效或過期，清除 token
       console.log("Auto-login failed, token may be expired");
     }
 
-    const [productsData, categoriesData] = await Promise.all([
-      api.products.getAll(),
-      api.categories.getAll(),
-    ]);
-
-    products.value = productsData;
+    const categoriesData = await api.categories.getAll();
     categories.value = categoriesData;
 
-    // 如果使用者已登入，載入訂單和詢問
+    await reloadProductsForCurrentRole();
+
     if (user.value) {
       try {
         if (user.value.role === "ADMIN") {
@@ -117,7 +117,6 @@ onMounted(async () => {
       }
     }
 
-    // Load featured products
     const [featuredIds, featuredProducts] = await Promise.all([
       api.featured.getAll(),
       api.featured.getProducts(),
@@ -314,6 +313,7 @@ const handleLogin = (loggedInUser: User) => {
   if (loggedInUser.role === "ADMIN") {
     currentView.value = "ADMIN_DASHBOARD";
     postLoginRedirect.value = null;
+    reloadProductsForCurrentRole();
     return;
   }
 
@@ -321,6 +321,9 @@ const handleLogin = (loggedInUser: User) => {
     currentView.value = postLoginRedirect.value;
     postLoginRedirect.value = null;
   }
+
+  // 一般會員登入後也重新載入商品（確保最新庫存/狀態）
+  reloadProductsForCurrentRole();
 };
 
 const handleLogout = async () => {
@@ -331,6 +334,8 @@ const handleLogout = async () => {
   } finally {
     user.value = null;
     isDashboardOpen.value = false;
+    // 登出後用公開商品列表
+    reloadProductsForCurrentRole();
     handleHomeClick();
   }
 };
@@ -386,9 +391,9 @@ const handleCreateProduct = async (
   productData: Omit<Product, "id" | "variants" | "totalStock">
 ) => {
   try {
-    const newProduct = await api.products.create(productData);
-    products.value.push(newProduct);
-    return newProduct;
+    const created = await api.products.create(productData);
+    await reloadProductsForCurrentRole();
+    return created;
   } catch (error) {
     console.error("Failed to create product:", error);
     throw error;
@@ -402,10 +407,7 @@ const handleUpdateProduct = async (
   try {
     const updated = await api.products.update(id, productData);
     if (updated) {
-      const index = products.value.findIndex((p) => p.id === id);
-      if (index !== -1) {
-        products.value[index] = updated;
-      }
+      await reloadProductsForCurrentRole();
     }
     return updated;
   } catch (error) {
@@ -418,7 +420,7 @@ const handleDeleteProduct = async (id: string) => {
   try {
     const success = await api.products.delete(id);
     if (success) {
-      products.value = products.value.filter((p) => p.id !== id);
+      await reloadProductsForCurrentRole();
     }
     return success;
   } catch (error) {
@@ -440,14 +442,28 @@ const handleUploadImage = async (file: File): Promise<string> => {
 // ============================================
 // Admin: Variant CRUD
 // ============================================
+const refreshSingleProduct = async (productId: string) => {
+  try {
+    const refreshed = await api.products.getById(productId);
+    if (!refreshed) return;
+    const idx = products.value.findIndex((p) => p.id === productId);
+    if (idx !== -1) {
+      products.value[idx] = refreshed;
+    } else {
+      products.value.push(refreshed);
+    }
+  } catch (error) {
+    console.error("Failed to refresh product", productId, error);
+  }
+};
+
 const handleCreateVariant = async (
   productId: string,
   data: { color: string; size: string; stock: number }
 ) => {
   try {
     const newVariant = await api.variants.create(productId, data);
-    // 重新載入商品以更新 variants
-    products.value = await api.products.getAll();
+    await refreshSingleProduct(productId);
     return newVariant;
   } catch (error) {
     console.error("Failed to create variant:", error);
@@ -461,8 +477,11 @@ const handleUpdateVariant = async (
 ) => {
   try {
     const updated = await api.variants.update(id, data);
-    // 重新載入商品以更新 variants
-    products.value = await api.products.getAll();
+    if (updated) {
+      await refreshSingleProduct(updated.productId);
+    } else {
+      await reloadProductsForCurrentRole();
+    }
     return updated;
   } catch (error) {
     console.error("Failed to update variant:", error);
@@ -473,8 +492,10 @@ const handleUpdateVariant = async (
 const handleDeleteVariant = async (id: string) => {
   try {
     const success = await api.variants.delete(id);
-    // 重新載入商品以更新 variants
-    products.value = await api.products.getAll();
+    if (success) {
+      // 無法直接從回應得知 productId，重新載入較保險
+      await reloadProductsForCurrentRole();
+    }
     return success;
   } catch (error) {
     console.error("Failed to delete variant:", error);
@@ -594,6 +615,7 @@ const handleToggleFeatured = async (productId: string) => {
       <div v-if="currentView === 'COLLECTION'">
         <CollectionSection
           :products="products"
+          :categories="categories"
           @product-click="handleProductClick"
         />
       </div>

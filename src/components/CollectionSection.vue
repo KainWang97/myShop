@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import type { Product } from "../types";
-import { CATEGORIES } from "../constants";
+import type { Product, Category } from "../types";
 import ProductCard from "./ProductCard.vue";
 import FilterBar from "./FilterBar.vue";
 
 const props = defineProps<{
   products: Product[];
+  categories: Category[];
 }>();
 
 const emit = defineEmits<{
@@ -17,6 +17,11 @@ const activeCategory = ref("All");
 
 onMounted(() => {
   window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+const categoryOptions = computed(() => {
+  const names = props.categories.map((c) => c.name);
+  return ["All", ...names];
 });
 
 const filteredProducts = computed(() => {
@@ -43,7 +48,7 @@ const filteredProducts = computed(() => {
       </div>
 
       <FilterBar
-        :categories="['All', ...CATEGORIES]"
+        :categories="categoryOptions"
         :activeCategory="activeCategory"
         @select-category="activeCategory = $event"
       />

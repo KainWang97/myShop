@@ -50,7 +50,7 @@ interface BackendProduct {
  * 後端 ProductVariant 格式
  */
 interface BackendProductVariant {
-  variantId: number;
+  id: number; // DTO 使用 id
   productId: number;
   skuCode: string;
   color: string;
@@ -84,7 +84,7 @@ function transformProduct(backend: BackendProduct): Product {
  */
 function transformVariant(backend: BackendProductVariant): ProductVariant {
   return {
-    id: String(backend.variantId),
+    id: String(backend.id),
     productId: String(backend.productId),
     skuCode: backend.skuCode,
     color: backend.color,
@@ -197,7 +197,9 @@ async function transformOrder(backend: BackendOrder): Promise<Order> {
           fullName: backend.recipientName,
           phone: backend.recipientPhone || "",
           email: "",
-          method: (backend.paymentMethod as "BANK_TRANSFER" | "STORE_PICKUP") || "BANK_TRANSFER",
+          method:
+            (backend.paymentMethod as "BANK_TRANSFER" | "STORE_PICKUP") ||
+            "BANK_TRANSFER",
           address: backend.shippingAddress,
         }
       : undefined,
@@ -279,19 +281,51 @@ export const productApi = {
   async getAll(): Promise<Product[]> {
     const backendProducts: BackendProduct[] = await apiGet("/products");
     const products = backendProducts.map(transformProduct);
-    
+
     // 為每個商品取得 variants
     const productsWithVariants = await Promise.all(
       products.map(async (product) => {
         try {
           const variants = await this.getVariants(product.id);
-          return { ...product, variants, totalStock: variants.reduce((sum, v) => sum + v.stock, 0) };
+          return {
+            ...product,
+            variants,
+            totalStock: variants.reduce((sum, v) => sum + v.stock, 0),
+          };
         } catch {
           return product;
         }
       })
     );
-    
+
+    return productsWithVariants;
+  },
+
+  /**
+   * 取得所有商品 (Admin) - 包含未上架
+   * GET /api/products/admin/all
+   */
+  async getAllAdmin(): Promise<Product[]> {
+    const backendProducts: BackendProduct[] = await apiGet(
+      "/products/admin/all"
+    );
+    const products = backendProducts.map(transformProduct);
+
+    const productsWithVariants = await Promise.all(
+      products.map(async (product) => {
+        try {
+          const variants = await this.getVariants(product.id);
+          return {
+            ...product,
+            variants,
+            totalStock: variants.reduce((sum, v) => sum + v.stock, 0),
+          };
+        } catch {
+          return product;
+        }
+      })
+    );
+
     return productsWithVariants;
   },
 
@@ -303,7 +337,7 @@ export const productApi = {
     try {
       const backend: BackendProduct = await apiGet(`/products/${id}`);
       const product = transformProduct(backend);
-      
+
       // 取得 variants
       try {
         const variants = await this.getVariants(id);
@@ -312,11 +346,11 @@ export const productApi = {
       } catch {
         // Variants 取得失敗，使用預設值
       }
-      
+
       return product;
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
-    return undefined;
+        return undefined;
       }
       throw error;
     }
@@ -331,19 +365,23 @@ export const productApi = {
       `/products/category/${categoryId}`
     );
     const products = backendProducts.map(transformProduct);
-    
+
     // 為每個商品取得 variants
     const productsWithVariants = await Promise.all(
       products.map(async (product) => {
         try {
           const variants = await this.getVariants(product.id);
-          return { ...product, variants, totalStock: variants.reduce((sum, v) => sum + v.stock, 0) };
+          return {
+            ...product,
+            variants,
+            totalStock: variants.reduce((sum, v) => sum + v.stock, 0),
+          };
         } catch {
           return product;
         }
       })
     );
-    
+
     return productsWithVariants;
   },
 
@@ -356,19 +394,23 @@ export const productApi = {
       `/products/search?keyword=${encodeURIComponent(keyword)}`
     );
     const products = backendProducts.map(transformProduct);
-    
+
     // 為每個商品取得 variants
     const productsWithVariants = await Promise.all(
       products.map(async (product) => {
         try {
           const variants = await this.getVariants(product.id);
-          return { ...product, variants, totalStock: variants.reduce((sum, v) => sum + v.stock, 0) };
+          return {
+            ...product,
+            variants,
+            totalStock: variants.reduce((sum, v) => sum + v.stock, 0),
+          };
         } catch {
           return product;
         }
       })
     );
-    
+
     return productsWithVariants;
   },
 
@@ -400,7 +442,7 @@ export const productApi = {
     };
     const backend: BackendProduct = await apiPost("/products", requestBody);
     const product = transformProduct(backend);
-    
+
     // 取得 variants
     try {
       const variants = await this.getVariants(product.id);
@@ -409,7 +451,7 @@ export const productApi = {
     } catch {
       // Variants 取得失敗
     }
-    
+
     return product;
   },
 
@@ -433,7 +475,7 @@ export const productApi = {
         requestBody
       );
       const product = transformProduct(backend);
-      
+
       // 取得 variants
       try {
         const variants = await this.getVariants(id);
@@ -442,11 +484,11 @@ export const productApi = {
       } catch {
         // Variants 取得失敗
       }
-      
+
       return product;
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
-    return null;
+        return null;
       }
       throw error;
     }
@@ -461,7 +503,7 @@ export const productApi = {
       await apiDelete(`/products/${id}`);
       return true;
     } catch {
-    return false;
+      return false;
     }
   },
 
@@ -534,7 +576,7 @@ export const variantApi = {
       return transformVariant(backend);
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
-    return null;
+        return null;
       }
       throw error;
     }
@@ -549,7 +591,7 @@ export const variantApi = {
       await apiDelete(`/variants/${id}`);
       return true;
     } catch {
-    return false;
+      return false;
     }
   },
 };
@@ -607,7 +649,8 @@ export const orderApi = {
     }));
 
     const requestBody = {
-      shippingMethod: orderData.shippingDetails.method === "STORE_PICKUP" ? "STORE" : "MAIL",
+      shippingMethod:
+        orderData.shippingDetails.method === "STORE_PICKUP" ? "STORE" : "MAIL",
       paymentMethod: orderData.shippingDetails.method,
       recipientName: orderData.shippingDetails.fullName,
       recipientPhone: orderData.shippingDetails.phone,
@@ -631,7 +674,7 @@ export const orderApi = {
       await apiPatch(`/orders/${id}/status`, { status });
       return true;
     } catch {
-    return false;
+      return false;
     }
   },
 
@@ -644,7 +687,7 @@ export const orderApi = {
       await apiPatch(`/orders/${id}/payment-note`, { paymentNote: note });
       return true;
     } catch {
-    return false;
+      return false;
     }
   },
 };
@@ -684,7 +727,7 @@ export const inquiryApi = {
       await apiPatch(`/inquiries/${id}/reply`);
       return true;
     } catch {
-    return false;
+      return false;
     }
   },
 };
@@ -699,7 +742,7 @@ export const authApi = {
    */
   async login(data: { email: string; password: string }): Promise<User> {
     const backend: BackendUserResponse = await apiPost("/auth/login", data);
-    
+
     // 儲存 token
     if (backend.token) {
       setToken(backend.token);
@@ -719,7 +762,7 @@ export const authApi = {
     phone?: string;
   }): Promise<User> {
     const backend: BackendUserResponse = await apiPost("/auth/register", data);
-    
+
     // 儲存 token
     if (backend.token) {
       setToken(backend.token);
@@ -798,10 +841,7 @@ export const categoryApi = {
    */
   async update(id: string, data: Partial<Category>): Promise<Category | null> {
     try {
-      const backend: BackendCategory = await apiPut(
-        `/categories/${id}`,
-        data
-      );
+      const backend: BackendCategory = await apiPut(`/categories/${id}`, data);
       return transformCategory(backend);
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
@@ -820,7 +860,7 @@ export const categoryApi = {
       await apiDelete(`/categories/${id}`);
       return true;
     } catch {
-    return false;
+      return false;
     }
   },
 };
