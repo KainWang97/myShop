@@ -272,9 +272,13 @@ const handlePlaceOrder = async (shippingDetails: ShippingDetails) => {
       shippingDetails,
     });
 
-    // 重新載入商品資料以取得更新後的庫存
-    products.value = await api.products.getAll();
-    allOrders.value = await api.orders.getAll();
+    // 重新載入商品/訂單：依角色分流，避免會員打到 admin-only API
+    await reloadProductsForCurrentRole();
+    if (user.value?.role === "ADMIN") {
+      allOrders.value = await api.orders.getAll();
+    } else {
+      allOrders.value = await api.orders.getMy();
+    }
 
     if (user.value) {
       user.value.orders.unshift(newOrder);

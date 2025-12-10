@@ -29,15 +29,20 @@ watch(
 const message = ref("");
 const submitted = ref(false);
 
+const showToast = ref(false);
+
 const handleSubmit = () => {
   emit("submit", name.value, email.value, message.value);
   submitted.value = true;
+  // 等待送出狀態結束後再顯示提示
   setTimeout(() => {
     submitted.value = false;
-    name.value = "";
-    email.value = "";
     message.value = "";
-  }, 3000);
+    showToast.value = true;
+    setTimeout(() => {
+      showToast.value = false;
+    }, 1400);
+  }, 2000);
 };
 </script>
 
@@ -97,10 +102,20 @@ const handleSubmit = () => {
                 : 'hover:bg-sumi hover:text-washi'
             "
           >
-            {{ submitted ? "Sent" : "Send" }}
+            {{ submitted ? "送出中..." : "送出" }}
           </button>
         </div>
       </form>
+
+      <!-- 提示 Toast -->
+      <transition name="fade">
+        <div
+          v-if="showToast"
+          class="fixed top-6 left-1/2 -translate-x-1/2 z-[120] bg-stone-700/80 text-washi px-5 py-3 shadow-lg rounded"
+        >
+          訊息已送出
+        </div>
+      </transition>
     </div>
   </section>
 </template>

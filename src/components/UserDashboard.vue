@@ -182,12 +182,12 @@ const savePaymentNote = async (orderId: string) => {
               <div v-if="editingNoteOrderId === order.id" class="space-y-3">
                 <label
                   class="block text-xs uppercase tracking-widest text-stone-500"
-                  >付款備註</label
+                  >訂單備註</label
                 >
                 <textarea
                   v-model="noteContent"
                   rows="4"
-                  placeholder="範例：&#10;匯款帳號末五碼：12345&#10;匯款金額：$XXX&#10;匯款時間：2025/12/06 10:30"
+                  placeholder="匯款範例：&#10;匯款帳號末五碼：12345&#10;匯款金額：$XXX&#10;匯款時間：2025/12/12 12:00"
                   class="w-full border border-stone-300 p-3 text-sm focus:outline-none focus:border-sumi resize-none"
                 ></textarea>
                 <div class="flex gap-2 justify-end">

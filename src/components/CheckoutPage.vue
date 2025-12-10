@@ -237,7 +237,11 @@ const handleFinalSubmit = () => {
               <p
                 class="font-bold text-stone-400 text-sm tracking-widest text-red-800"
               >
-                請於匯款後，在訂單頁面提供匯款資訊，我們將在收到匯款後進行訂單確認。
+                請於匯款後，在訂單頁面提供匯款資訊，
+                <br />
+                我們將在收到匯款後進行訂單確認，煩請耐心等候。
+                <br />
+                如有任何問題，請聯繫我們，會盡快為您處理。
               </p>
             </div>
 
