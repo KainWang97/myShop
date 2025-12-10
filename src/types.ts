@@ -136,4 +136,5 @@ export type PageView =
   | "PRODUCT_DETAIL"
   | "CONTACT"
   | "CHECKOUT"
-  | "ADMIN_DASHBOARD";
+  | "ADMIN_DASHBOARD"
+  | "USER_DASHBOARD";

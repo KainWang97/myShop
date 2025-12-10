@@ -35,7 +35,7 @@ const total = computed(() =>
     0
   )
 );
-const shippingCost = computed(() => (total.value > 200 ? 0 : 15));
+const shippingCost = computed(() => (total.value > 1000 ? 0 : 60));
 const finalTotal = computed(() => total.value + shippingCost.value);
 
 const handleSubmitInfo = () => {
@@ -228,18 +228,23 @@ const handleFinalSubmit = () => {
                 class="bg-stone-100 p-4 text-xs text-stone-600 space-y-1 font-mono mt-4"
               >
                 <p class="uppercase tracking-widest text-stone-400 mb-2">
-                  Bank Details
+                  請將訂單總金額匯入以下帳戶，若有任何問題，請聯繫我們。
                 </p>
                 <p>Bank: Choose Bank (808)</p>
                 <p>Account: 1234-5678-9012</p>
                 <p>Name: Choose Select Ltd.</p>
               </div>
+              <p
+                class="font-bold text-stone-400 text-sm tracking-widest text-red-800"
+              >
+                請於匯款後，在訂單頁面提供匯款資訊，我們將在收到匯款後進行訂單確認。
+              </p>
             </div>
 
             <div v-else class="space-y-6 animate-fade-in">
               <h3 class="font-serif text-sumi">Store Details</h3>
               <p class="text-xs text-stone-500">
-                Please provide the convenience store details.
+                請提供便利商店的店號以及店名。
               </p>
 
               <div>
@@ -297,7 +302,7 @@ const handleFinalSubmit = () => {
 
       <!-- Right Column: Order Summary -->
       <div class="bg-stone-50 p-8 h-fit border border-stone-200">
-        <h2 class="font-serif text-xl text-sumi mb-6">Order Summary</h2>
+        <h2 class="font-serif text-xl text-sumi mb-6">訂單總覽</h2>
 
         <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 mb-6">
           <div

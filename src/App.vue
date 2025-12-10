@@ -53,6 +53,8 @@ const activeProduct = ref<Product | null>(null);
 const isAuthOpen = ref(false);
 const isCartOpen = ref(false);
 const isDashboardOpen = ref(false);
+type AdminTab = "INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES";
+const adminInitialTab = ref<AdminTab>("INVENTORY");
 const isScrolled = ref(false);
 const showCartToast = ref(false);
 
@@ -165,6 +167,7 @@ const handleCollectionClick = () => {
 
 const handleAdminDashboardClick = () => {
   handleCloseProduct();
+  adminInitialTab.value = "INVENTORY";
   currentView.value = "ADMIN_DASHBOARD";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
@@ -280,9 +283,10 @@ const handlePlaceOrder = async (shippingDetails: ShippingDetails) => {
     cart.value = [];
 
     if (user.value?.role === "ADMIN") {
+      adminInitialTab.value = "ORDERS";
       currentView.value = "ADMIN_DASHBOARD";
     } else {
-      currentView.value = "HOME";
+      currentView.value = "USER_DASHBOARD";
       isDashboardOpen.value = true;
 
       if (shippingDetails.method === "BANK_TRANSFER") {
@@ -655,6 +659,7 @@ const handleToggleFeatured = async (productId: string) => {
           @update-variant="handleUpdateVariant"
           @delete-variant="handleDeleteVariant"
           @toggle-featured="handleToggleFeatured"
+          :initialTab="adminInitialTab"
         />
       </div>
 

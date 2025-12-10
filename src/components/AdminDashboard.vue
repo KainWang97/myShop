@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import type {
   Product,
   ProductVariant,
@@ -18,6 +18,7 @@ const props = defineProps<{
   orders: Order[];
   inquiries: Inquiry[];
   featuredProductIds: string[];
+  initialTab?: "INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES";
 }>();
 
 const emit = defineEmits<{
@@ -52,7 +53,14 @@ const emit = defineEmits<{
 }>();
 
 const activeTab = ref<"INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES">(
-  "INVENTORY"
+  props.initialTab ?? "INVENTORY"
+);
+
+watch(
+  () => props.initialTab,
+  (next) => {
+    if (next) activeTab.value = next;
+  }
 );
 
 // ============================================
