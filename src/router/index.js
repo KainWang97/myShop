@@ -12,6 +12,7 @@ const ProductView = () => import("../views/ProductView.vue");
 const ContactView = () => import("../views/ContactView.vue");
 const CheckoutView = () => import("../views/CheckoutView.vue");
 const AdminView = () => import("../views/AdminView.vue");
+const AccountView = () => import("../views/AccountView.vue");
 
 // 路由定義
 const routes = [
@@ -44,6 +45,12 @@ const routes = [
     name: "checkout",
     component: CheckoutView,
     meta: { title: "Checkout - Choose", requiresAuth: true },
+  },
+  {
+    path: "/account",
+    name: "account",
+    component: AccountView,
+    meta: { title: "My Account - Choose", requiresAuth: true },
   },
   {
     path: "/admin",

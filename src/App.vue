@@ -9,7 +9,6 @@ import Navbar from "./components/Navbar.vue";
 import Footer from "./components/Footer.vue";
 import AuthModal from "./components/AuthModal.vue";
 import CartDrawer from "./components/CartDrawer.vue";
-import UserDashboard from "./components/UserDashboard.vue";
 import ConfirmModal from "./components/ConfirmModal.vue";
 import CartToast from "./components/CartToast.vue";
 import { useConfirm } from "./composables/useConfirm.js";
@@ -33,7 +32,6 @@ const loadError = ref(null);
 // UI State
 const isAuthOpen = ref(false);
 const isCartOpen = ref(false);
-const isDashboardOpen = ref(false);
 const isScrolled = ref(false);
 const showCartToast = ref(false);
 const postLoginRedirect = ref(null);
@@ -258,7 +256,8 @@ const handlePlaceOrder = async (shippingDetails) => {
     if (user.value?.role === "ADMIN") {
       router.push("/admin?tab=orders");
     } else {
-      isDashboardOpen.value = true;
+      // 導向會員中心
+      router.push("/account");
 
       if (shippingDetails.method === "BANK_TRANSFER") {
         setTimeout(() => {
@@ -323,7 +322,6 @@ const handleLogout = async () => {
     console.error("Logout error:", error);
   } finally {
     user.value = null;
-    isDashboardOpen.value = false;
     reloadProductsForCurrentRole();
     router.push("/");
   }
@@ -582,6 +580,8 @@ provide("handleCreateVariant", handleCreateVariant);
 provide("handleUpdateVariant", handleUpdateVariant);
 provide("handleDeleteVariant", handleDeleteVariant);
 provide("handleToggleFeatured", handleToggleFeatured);
+provide("handleLogout", handleLogout);
+provide("handleUpdatePaymentNote", handleUpdatePaymentNote);
 
 // 判斷是否隱藏 Footer (在 Admin 頁面)
 const hideFooter = computed(() => route.path.startsWith("/admin"));
@@ -597,7 +597,7 @@ const hideFooter = computed(() => route.path.startsWith("/admin"));
       :cartItems="cart"
       @open-auth="isAuthOpen = true"
       @open-cart="isCartOpen = true"
-      @open-dashboard="isDashboardOpen = true"
+      @open-account="router.push('/account')"
       @open-admin="handleAdminDashboardClick"
       @home="handleHomeClick"
       @collection="handleCollectionClick"
@@ -626,15 +626,6 @@ const hideFooter = computed(() => route.path.startsWith("/admin"));
       @update-quantity="handleUpdateQuantity"
       @set-quantity="handleSetQuantity"
       @checkout="handleCheckoutStart"
-    />
-
-    <UserDashboard
-      v-if="user"
-      :user="user"
-      :isOpen="isDashboardOpen"
-      @close="isDashboardOpen = false"
-      @logout="handleLogout"
-      @update-payment-note="handleUpdatePaymentNote"
     />
 
     <!-- Global Confirm Modal -->

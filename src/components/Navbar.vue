@@ -11,7 +11,7 @@ const props = defineProps({
 const emit = defineEmits([
   "open-auth",
   "open-cart",
-  "open-dashboard",
+  "open-account",
   "open-admin",
   "home",
   "collection",
@@ -84,9 +84,9 @@ const isAdmin = computed(() => props.user?.role === "ADMIN");
 
         <!-- Account Icon -->
         <button
-          @click="user ? emit('open-dashboard') : emit('open-auth')"
+          @click="user ? emit('open-account') : emit('open-auth')"
           class="hover:text-sumi transition-colors group relative"
-          :title="user ? (isAdmin ? 'Admin Dashboard' : 'Account') : 'Login'"
+          :title="user ? (isAdmin ? 'Admin Dashboard' : 'My Account') : 'Login'"
         >
           <svg
             class="w-6 h-6 stroke-current stroke-1 group-hover:stroke-2 transition-all"
