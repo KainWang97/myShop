@@ -1,15 +1,13 @@
-<script setup lang="ts">
+<script setup>
 import { ref, watch } from "vue";
 
-const props = defineProps<{
-  show: boolean;
-  message?: string;
-  duration?: number;
-}>();
+const props = defineProps({
+  show: Boolean,
+  message: String,
+  duration: Number,
+});
 
-const emit = defineEmits<{
-  (e: "close"): void;
-}>();
+const emit = defineEmits(["close"]);
 
 const isVisible = ref(false);
 

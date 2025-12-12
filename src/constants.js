@@ -1,9 +1,8 @@
-import type { Product, ProductVariant, Category, MockUser } from "./types";
-
 // ============================================
 // Mock Users (對應 SQL users)
 // ============================================
-export const MOCK_USERS: MockUser[] = [
+/** @type {import('./types.js').MockUser[]} */
+export const MOCK_USERS = [
   {
     id: "1",
     email: "admin@komorebi.com",
@@ -24,7 +23,8 @@ export const MOCK_USERS: MockUser[] = [
 
 // ============================================
 // Mock Categories (對應 SQL categories)
-export const MOCK_CATEGORIES: Category[] = [
+/** @type {import('./types.js').Category[]} */
+export const MOCK_CATEGORIES = [
   {
     id: "1",
     name: "Tea Ritual",
@@ -43,7 +43,8 @@ export const CATEGORIES = MOCK_CATEGORIES.map((c) => c.name);
 // ============================================
 // Mock Product Variants (對應 SQL product_variants)
 // ============================================
-export const MOCK_VARIANTS: ProductVariant[] = [
+/** @type {import('./types.js').ProductVariant[]} */
+export const MOCK_VARIANTS = [
   // Product 1: Iron Teapot - 單一規格
   {
     id: "v1",
@@ -140,7 +141,8 @@ export const MOCK_VARIANTS: ProductVariant[] = [
 // ============================================
 // Mock Products (對應 SQL products)
 // ============================================
-export const PRODUCTS: Product[] = [
+/** @type {import('./types.js').Product[]} */
+export const PRODUCTS = [
   {
     id: "1",
     categoryId: "1",
@@ -240,4 +242,5 @@ export const PRODUCTS: Product[] = [
 ];
 
 // 新品上架精選商品 IDs (由管理員選擇，最多5個)
-export const INITIAL_FEATURED_IDS: string[] = ["2", "4", "6"];
+/** @type {string[]} */
+export const INITIAL_FEATURED_IDS = ["2", "4", "6"];

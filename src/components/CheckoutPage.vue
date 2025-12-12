@@ -1,23 +1,19 @@
-<script setup lang="ts">
+<script setup>
 import { ref, computed } from "vue";
-import type { CartItem, PaymentMethod, ShippingDetails } from "../types";
 
-const props = defineProps<{
-  cartItems: CartItem[];
-  userEmail?: string;
-  userName?: string;
-}>();
+const props = defineProps({
+  cartItems: Array,
+  userEmail: String,
+  userName: String,
+});
 
-const emit = defineEmits<{
-  (e: "place-order", details: ShippingDetails): void;
-  (e: "back"): void;
-}>();
+const emit = defineEmits(["place-order", "back"]);
 
-const step = ref<"INFO" | "PAYMENT">("INFO");
-const paymentMethod = ref<PaymentMethod>("BANK_TRANSFER");
+const step = ref("INFO");
+const paymentMethod = ref("BANK_TRANSFER");
 const isPlacingOrder = ref(false);
 
-const formData = ref<ShippingDetails>({
+const formData = ref({
   fullName: props.userName || "",
   email: props.userEmail || "",
   phone: "",

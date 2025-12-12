@@ -1,20 +1,17 @@
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import type { Product, ProductVariant } from "../types";
 
-const props = defineProps<{
-  product: Product;
-  currentQuantityForVariant: (variantId: string) => number;
-}>();
+const props = defineProps({
+  product: Object,
+  currentQuantityForVariant: Function,
+});
 
-const emit = defineEmits<{
-  (e: "add-to-cart", product: Product, variant: ProductVariant): void;
-}>();
+const emit = defineEmits(["add-to-cart"]);
 
 const addedAnimation = ref(false);
 
 // 選中的規格
-const selectedVariant = ref<ProductVariant | null>(null);
+const selectedVariant = ref(null);
 
 // 取得所有可選的顏色
 const availableColors = computed(() => {
@@ -58,7 +55,7 @@ watch(
 );
 
 // 選擇顏色
-const selectColor = (color: string) => {
+const selectColor = (color) => {
   const variant = props.product.variants?.find((v) => v.color === color);
   if (variant) {
     selectedVariant.value = variant;
@@ -66,7 +63,7 @@ const selectColor = (color: string) => {
 };
 
 // 選擇尺寸
-const selectSize = (size: string) => {
+const selectSize = (size) => {
   const variant = props.product.variants?.find(
     (v) => v.color === selectedVariant.value?.color && v.size === size
   );

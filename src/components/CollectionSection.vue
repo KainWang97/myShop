@@ -1,17 +1,14 @@
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted } from "vue";
-import type { Product, Category } from "../types";
 import ProductCard from "./ProductCard.vue";
 import FilterBar from "./FilterBar.vue";
 
-const props = defineProps<{
-  products: Product[];
-  categories: Category[];
-}>();
+const props = defineProps({
+  products: Array,
+  categories: Array,
+});
 
-const emit = defineEmits<{
-  (e: "product-click", product: Product): void;
-}>();
+const emit = defineEmits(["product-click"]);
 
 const activeCategory = ref("All");
 
@@ -41,7 +38,9 @@ const filteredProducts = computed(() => {
   <div class="min-h-screen bg-washi pt-32 pb-24">
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex flex-col items-center mb-16 space-y-6 text-center">
-        <h2 class="text-4xl font-serif text-sumi tracking-wider">All Items</h2>
+        <h2 class="text-4xl font-serif font-semibold text-sumi tracking-wider">
+          All Items
+        </h2>
         <p class="text-xs tracking-[0.2em] text-stone-500 uppercase">
           Life is what you choose
         </p>

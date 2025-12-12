@@ -1,14 +1,12 @@
-<script setup lang="ts">
+<script setup>
 import { ref, watch } from "vue";
 
-const props = defineProps<{
-  initialName?: string;
-  initialEmail?: string;
-}>();
+const props = defineProps({
+  initialName: String,
+  initialEmail: String,
+});
 
-const emit = defineEmits<{
-  (e: "submit", name: string, email: string, message: string): void;
-}>();
+const emit = defineEmits(["submit"]);
 
 const name = ref(props.initialName || "");
 const email = ref(props.initialEmail || "");

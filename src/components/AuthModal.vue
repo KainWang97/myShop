@@ -1,16 +1,12 @@
-<script setup lang="ts">
+<script setup>
 import { ref } from "vue";
-import type { User } from "../types";
-import { api } from "../services/api";
+import { api } from "../services/api.js";
 
-const props = defineProps<{
-  isOpen: boolean;
-}>();
+const props = defineProps({
+  isOpen: Boolean,
+});
 
-const emit = defineEmits<{
-  (e: "close"): void;
-  (e: "login", user: User): void;
-}>();
+const emit = defineEmits(["close", "login"]);
 
 // Form state
 const isLogin = ref(true);
@@ -49,7 +45,7 @@ const handleLogin = async () => {
     emit("login", loggedInUser);
     emit("close");
     resetForm();
-  } catch (error: any) {
+  } catch (error) {
     errorMessage.value =
       error.message === "Invalid credentials"
         ? "帳號或密碼錯誤"
@@ -84,7 +80,7 @@ const handleRegister = async () => {
     emit("login", newUser);
     emit("close");
     resetForm();
-  } catch (error: any) {
+  } catch (error) {
     errorMessage.value =
       error.message === "Email already registered"
         ? "此 Email 已被註冊"

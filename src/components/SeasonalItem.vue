@@ -1,19 +1,16 @@
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted, onUnmounted, computed } from "vue";
-import type { Product } from "../types";
 
-const props = defineProps<{
-  product: Product;
-  index: number;
-}>();
+const props = defineProps({
+  product: Object,
+  index: Number,
+});
 
-const emit = defineEmits<{
-  (e: "click", product: Product): void;
-}>();
+const emit = defineEmits(["click"]);
 
-const itemRef = ref<HTMLElement | null>(null);
+const itemRef = ref(null);
 const isVisible = ref(false);
-let observer: IntersectionObserver | null = null;
+let observer = null;
 
 onMounted(() => {
   observer = new IntersectionObserver(

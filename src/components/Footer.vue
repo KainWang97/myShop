@@ -1,5 +1,19 @@
-<script setup lang="ts">
-// Static
+<script setup>
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+
+const goToContact = () => {
+  router.push("/contact");
+};
+
+const goToCollection = () => {
+  router.push("/collection");
+};
+
+const goHome = () => {
+  router.push("/");
+};
 </script>
 
 <template>
@@ -20,16 +34,27 @@
       <div class="flex gap-12 text-xs tracking-widest uppercase">
         <div class="flex flex-col gap-4">
           <span class="text-washi">Shop</span>
-          <a href="#" class="hover:text-washi transition-colors"
-            >New Arrivals</a
+          <button
+            @click="goHome"
+            class="hover:text-washi transition-colors text-left"
           >
-          <a href="#" class="hover:text-washi transition-colors">Home</a>
-          <!-- <a href="#" class="hover:text-washi transition-colors">Apparel</a> -->
+            New Arrivals
+          </button>
+          <button
+            @click="goToCollection"
+            class="hover:text-washi transition-colors text-left"
+          >
+            Collection
+          </button>
         </div>
         <div class="flex flex-col gap-4">
-          <span class="text-washi">Social</span>
-          <a href="#" class="hover:text-washi transition-colors">Instagram</a>
-          <!-- <a href="#" class="hover:text-washi transition-colors">Pinterest</a> -->
+          <span class="text-washi">Support</span>
+          <button
+            @click="goToContact"
+            class="hover:text-washi transition-colors text-left"
+          >
+            Contact
+          </button>
         </div>
       </div>
     </div>

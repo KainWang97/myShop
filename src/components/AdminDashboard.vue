@@ -1,60 +1,35 @@
-<script setup lang="ts">
+<script setup>
 import { ref, computed, watch } from "vue";
-import type {
-  Product,
-  ProductVariant,
-  Order,
-  Inquiry,
-  OrderStatus,
-  Category,
-} from "../types";
-import { useConfirm } from "../composables/useConfirm";
+import { useConfirm } from "../composables/useConfirm.js";
 
 const { confirm } = useConfirm();
 
-const props = defineProps<{
-  products: Product[];
-  categories: Category[];
-  orders: Order[];
-  inquiries: Inquiry[];
-  featuredProductIds: string[];
-  initialTab?: "INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES";
-}>();
+const props = defineProps({
+  products: Array,
+  categories: Array,
+  orders: Array,
+  inquiries: Array,
+  featuredProductIds: Array,
+  initialTab: String,
+});
 
-const emit = defineEmits<{
-  (e: "update-order-status", id: string, status: OrderStatus): void;
-  (e: "reply-inquiry", id: string): void;
-  (
-    e: "create-product",
-    data: Omit<Product, "id" | "variants" | "totalStock">
-  ): Promise<Product>;
-  (
-    e: "update-product",
-    id: string,
-    data: Partial<Product>
-  ): Promise<Product | null>;
-  (e: "delete-product", id: string): Promise<boolean>;
-  (e: "upload-image", file: File): Promise<string>;
-  (e: "create-category", data: Omit<Category, "id">): Promise<void>;
-  (e: "update-category", id: string, data: Partial<Category>): Promise<void>;
-  (e: "delete-category", id: string): Promise<void>;
-  (
-    e: "create-variant",
-    productId: string,
-    data: { color: string; size: string; stock: number }
-  ): Promise<ProductVariant>;
-  (
-    e: "update-variant",
-    id: string,
-    data: Partial<ProductVariant>
-  ): Promise<ProductVariant | null>;
-  (e: "delete-variant", id: string): Promise<boolean>;
-  (e: "toggle-featured", productId: string): Promise<void>;
-}>();
+const emit = defineEmits([
+  "update-order-status",
+  "reply-inquiry",
+  "create-product",
+  "update-product",
+  "delete-product",
+  "upload-image",
+  "create-category",
+  "update-category",
+  "delete-category",
+  "create-variant",
+  "update-variant",
+  "delete-variant",
+  "toggle-featured",
+]);
 
-const activeTab = ref<"INVENTORY" | "ORDERS" | "INQUIRIES" | "CATEGORIES">(
-  props.initialTab ?? "INVENTORY"
-);
+const activeTab = ref(props.initialTab ?? "INVENTORY");
 
 watch(
   () => props.initialTab,
@@ -67,7 +42,7 @@ watch(
 // Product Form State
 // ============================================
 const isFormOpen = ref(false);
-const editingProductId = ref<string | null>(null);
+const editingProductId = ref(null);
 const formData = ref({
   name: "",
   price: 0,
@@ -80,15 +55,15 @@ const formData = ref({
 // Image Upload State
 const isUploading = ref(false);
 const uploadError = ref(false);
-const pendingFile = ref<File | null>(null);
-const previewUrl = ref<string | null>(null);
+const pendingFile = ref(null);
+const previewUrl = ref(null);
 
 // ============================================
 // Variant Form State
 // ============================================
 const isVariantFormOpen = ref(false);
-const editingVariantId = ref<string | null>(null);
-const currentProductForVariant = ref<Product | null>(null);
+const editingVariantId = ref(null);
+const currentProductForVariant = ref(null);
 const isVariantSubmitting = ref(false);
 
 const activeVariantProduct = computed(() => {
@@ -109,7 +84,7 @@ const variantFormData = ref({
 // Category Form State
 // ============================================
 const isCategoryFormOpen = ref(false);
-const editingCategoryId = ref<string | null>(null);
+const editingCategoryId = ref(null);
 const categoryFormData = ref({
   name: "",
   description: "",
@@ -126,7 +101,7 @@ const openNewCategoryForm = () => {
   isCategoryFormOpen.value = true;
 };
 
-const openEditCategoryForm = (category: Category) => {
+const openEditCategoryForm = (category) => {
   editingCategoryId.value = category.id;
   categoryFormData.value = {
     name: category.name,
@@ -142,7 +117,7 @@ const closeCategoryForm = () => {
   categoryError.value = "";
 };
 
-const validateCategoryName = (name: string): boolean => {
+const validateCategoryName = (name) => {
   return /^[A-Za-z\s]+$/.test(name);
 };
 
@@ -168,7 +143,7 @@ const submitCategoryForm = async () => {
   }
 };
 
-const confirmDeleteCategory = async (category: Category) => {
+const confirmDeleteCategory = async (category) => {
   const confirmed = await confirm({
     title: "刪除分類",
     message: `確定要刪除分類 "${category.name}" 嗎？`,
@@ -184,7 +159,7 @@ const confirmDeleteCategory = async (category: Category) => {
 // ============================================
 // Product CRUD
 // ============================================
-const getCategoryName = (categoryId: string): string => {
+const getCategoryName = (categoryId) => {
   const cat = props.categories.find((c) => c.id === categoryId);
   return cat?.name || categoryId;
 };
@@ -205,7 +180,7 @@ const openNewProductForm = () => {
   isFormOpen.value = true;
 };
 
-const openEditForm = (product: Product) => {
+const openEditForm = (product) => {
   editingProductId.value = product.id;
   formData.value = {
     name: product.name,
@@ -229,8 +204,8 @@ const closeForm = () => {
   uploadError.value = false;
 };
 
-const handleFileSelect = (event: Event) => {
-  const input = event.target as HTMLInputElement;
+const handleFileSelect = (event) => {
+  const input = event.target;
   if (input.files && input.files[0]) {
     pendingFile.value = input.files[0];
     previewUrl.value = URL.createObjectURL(input.files[0]);
@@ -286,7 +261,7 @@ const submitForm = async () => {
   }
 };
 
-const confirmDelete = async (product: Product) => {
+const confirmDelete = async (product) => {
   const confirmed = await confirm({
     title: "刪除商品",
     message: `確定要刪除 "${product.name}" 嗎？此操作無法復原。`,
@@ -302,7 +277,7 @@ const confirmDelete = async (product: Product) => {
 // ============================================
 // Variant CRUD
 // ============================================
-const openVariantManager = (product: Product) => {
+const openVariantManager = (product) => {
   currentProductForVariant.value = product;
   editingVariantId.value = null;
   variantFormData.value = { color: "", size: "", stock: 0 };
@@ -315,7 +290,7 @@ const closeVariantForm = () => {
   editingVariantId.value = null;
 };
 
-const editVariant = (variant: ProductVariant) => {
+const editVariant = (variant) => {
   editingVariantId.value = variant.id;
   variantFormData.value = {
     color: variant.color,
@@ -364,7 +339,7 @@ const submitVariantForm = async () => {
   }
 };
 
-const confirmDeleteVariant = async (variant: ProductVariant) => {
+const confirmDeleteVariant = async (variant) => {
   const confirmed = await confirm({
     title: "刪除規格",
     message: `確定要刪除規格 "${variant.color} / ${variant.size}" 嗎？`,
@@ -378,7 +353,7 @@ const confirmDeleteVariant = async (variant: ProductVariant) => {
 };
 
 // Helper: 取得訂單項目顯示文字
-const getOrderItemsText = (order: Order): string => {
+const getOrderItemsText = (order) => {
   return order.items
     .map(
       (item) =>
@@ -402,7 +377,7 @@ const getOrderItemsText = (order: Order): string => {
           <button
             v-for="tab in ['INVENTORY', 'CATEGORIES', 'ORDERS', 'INQUIRIES']"
             :key="tab"
-            @click="activeTab = tab as any"
+            @click="activeTab = tab"
             class="px-6 py-2 text-xs uppercase tracking-widest transition-all"
             :class="
               activeTab === tab
@@ -677,8 +652,7 @@ const getOrderItemsText = (order: Order): string => {
                         emit(
                           'update-order-status',
                           order.id,
-                          ($event.target as HTMLSelectElement)
-                            .value as OrderStatus
+                          $event.target.value
                         )
                       "
                       class="bg-stone-50 border border-stone-200 text-xs uppercase p-2 focus:outline-none focus:border-sumi"

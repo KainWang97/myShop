@@ -1,19 +1,16 @@
-<script setup lang="ts">
+<script setup>
 import { watch } from "vue";
 
-const props = defineProps<{
-  isOpen: boolean;
-  title?: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  variant?: "danger" | "warning" | "info";
-}>();
+const props = defineProps({
+  isOpen: Boolean,
+  title: String,
+  message: String,
+  confirmText: String,
+  cancelText: String,
+  variant: String,
+});
 
-const emit = defineEmits<{
-  (e: "confirm"): void;
-  (e: "cancel"): void;
-}>();
+const emit = defineEmits(["confirm", "cancel"]);
 
 // 防止背景滾動
 watch(

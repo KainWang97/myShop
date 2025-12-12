@@ -5,41 +5,28 @@
 
 import { reactive } from "vue";
 
-interface ConfirmOptions {
-  title?: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  variant?: "danger" | "warning" | "info";
-}
-
-interface ConfirmState {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmText: string;
-  cancelText: string;
-  variant: "danger" | "warning" | "info";
-  resolve: ((value: boolean) => void) | null;
-}
-
 // 全域狀態
-const state = reactive<ConfirmState>({
+const state = reactive({
   isOpen: false,
   title: "",
   message: "",
   confirmText: "確認",
   cancelText: "取消",
-  variant: "info",
+  variant: "info", // 'danger' | 'warning' | 'info'
   resolve: null,
 });
 
 /**
  * 顯示確認對話框並返回 Promise
- * @param options 對話框選項
- * @returns Promise<boolean> - 使用者確認返回 true，取消返回 false
+ * @param {Object} options 對話框選項
+ * @param {string} [options.title] 標題
+ * @param {string} options.message 訊息
+ * @param {string} [options.confirmText] 確認按鈕文字
+ * @param {string} [options.cancelText] 取消按鈕文字
+ * @param {'danger' | 'warning' | 'info'} [options.variant] 樣式變體
+ * @returns {Promise<boolean>} - 使用者確認返回 true，取消返回 false
  */
-const confirm = (options: ConfirmOptions): Promise<boolean> => {
+const confirm = (options) => {
   return new Promise((resolve) => {
     state.isOpen = true;
     state.title = options.title || "";

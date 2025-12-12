@@ -1,26 +1,21 @@
-<script setup lang="ts">
+<script setup>
 import { ref } from "vue";
-import type { User } from "../types";
 
-const props = defineProps<{
-  user: User;
-  isOpen: boolean;
-}>();
+const props = defineProps({
+  user: Object,
+  isOpen: Boolean,
+});
 
-const emit = defineEmits<{
-  (e: "close"): void;
-  (e: "logout"): void;
-  (e: "update-payment-note", orderId: string, note: string): void;
-}>();
+const emit = defineEmits(["close", "logout", "update-payment-note"]);
 
-const activeTab = ref<"orders" | "profile">("orders");
+const activeTab = ref("orders");
 
 // Payment Note Editing State
-const editingNoteOrderId = ref<string | null>(null);
+const editingNoteOrderId = ref(null);
 const noteContent = ref("");
 const isSavingNote = ref(false);
 
-const startEditingNote = (orderId: string, currentNote?: string) => {
+const startEditingNote = (orderId, currentNote) => {
   editingNoteOrderId.value = orderId;
   noteContent.value = currentNote || "";
 };
@@ -30,7 +25,7 @@ const cancelEditingNote = () => {
   noteContent.value = "";
 };
 
-const savePaymentNote = async (orderId: string) => {
+const savePaymentNote = async (orderId) => {
   // 顯示載入中狀態
   isSavingNote.value = true;
 

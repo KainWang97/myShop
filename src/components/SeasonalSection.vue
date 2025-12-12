@@ -1,14 +1,11 @@
-<script setup lang="ts">
-import type { Product } from "../types";
+<script setup>
 import SeasonalItem from "./SeasonalItem.vue";
 
-defineProps<{
-  products: Product[];
-}>();
+defineProps({
+  products: Array,
+});
 
-const emit = defineEmits<{
-  (e: "product-click", product: Product): void;
-}>();
+const emit = defineEmits(["product-click"]);
 </script>
 
 <template>

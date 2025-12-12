@@ -1,24 +1,22 @@
-<script setup lang="ts">
+<script setup>
 import { computed, ref } from "vue";
-import type { User, CartItem } from "../types";
-import { useConfirm } from "../composables/useConfirm";
+import { useConfirm } from "../composables/useConfirm.js";
 
-const props = defineProps<{
-  isScrolled: boolean;
-  user: User | null;
-  cartItems: CartItem[];
-}>();
+const props = defineProps({
+  isScrolled: Boolean,
+  user: Object,
+  cartItems: Array,
+});
 
-const emit = defineEmits<{
-  (e: "open-auth"): void;
-  (e: "open-cart"): void;
-  (e: "open-dashboard"): void;
-  (e: "open-admin"): void;
-  (e: "home"): void;
-  (e: "collection"): void;
-  (e: "contact"): void;
-  (e: "logout"): void;
-}>();
+const emit = defineEmits([
+  "open-auth",
+  "open-cart",
+  "open-dashboard",
+  "open-admin",
+  "home",
+  "collection",
+  "logout",
+]);
 
 const { confirm } = useConfirm();
 const isLoggingOut = ref(false);
@@ -82,14 +80,6 @@ const isAdmin = computed(() => props.user?.role === "ADMIN");
           class="hover:text-sumi transition-colors hidden md:block"
         >
           COLLECTION
-        </button>
-
-        <button
-          v-if="!isAdmin"
-          @click="emit('contact')"
-          class="hover:text-sumi transition-colors hidden md:block"
-        >
-          CONTACT
         </button>
 
         <!-- Account Icon -->

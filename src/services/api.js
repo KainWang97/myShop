@@ -3,18 +3,6 @@
  * 與後端 API 通訊的統一介面
  */
 
-import type {
-  Product,
-  ProductVariant,
-  Order,
-  OrderItem,
-  Inquiry,
-  ShippingDetails,
-  OrderStatus,
-  Category,
-  CartItem,
-  User,
-} from "../types";
 import {
   apiGet,
   apiPost,
@@ -23,47 +11,19 @@ import {
   apiDelete,
   setToken,
   removeToken,
-} from "../utils/apiClient";
+} from "../utils/apiClient.js";
 
 // ============================================
 // 資料轉換函數：後端格式 -> 前端格式
 // ============================================
 
 /**
- * 後端 ProductDTO 格式
- */
-interface BackendProduct {
-  id: number; // DTO 使用 id 而非 productId
-  categoryId?: number;
-  category?: string; // DTO 使用字串而非物件
-  name: string;
-  description?: string;
-  price: number;
-  image?: string; // DTO 使用 image 而非 imageUrl
-  isListed?: boolean;
-  stock?: number; // DTO 提供總庫存
-  createdAt?: string;
-  // 注意：DTO 不包含 variants，需要額外 API 呼叫取得
-}
-
-/**
- * 後端 ProductVariant 格式
- */
-interface BackendProductVariant {
-  id: number; // DTO 使用 id
-  productId: number;
-  skuCode: string;
-  color: string;
-  size: string;
-  stock: number;
-  createdAt?: string;
-}
-
-/**
  * 轉換後端 ProductDTO 為前端格式
  * 注意：DTO 不包含 variants，需要額外 API 呼叫
+ * @param {Object} backend
+ * @returns {import('../types.js').Product}
  */
-function transformProduct(backend: BackendProduct): Product {
+function transformProduct(backend) {
   return {
     id: String(backend.id),
     categoryId: String(backend.categoryId || ""),
@@ -81,8 +41,10 @@ function transformProduct(backend: BackendProduct): Product {
 
 /**
  * 轉換後端 ProductVariant 為前端格式
+ * @param {Object} backend
+ * @returns {import('../types.js').ProductVariant}
  */
-function transformVariant(backend: BackendProductVariant): ProductVariant {
+function transformVariant(backend) {
   return {
     id: String(backend.id),
     productId: String(backend.productId),
@@ -95,19 +57,11 @@ function transformVariant(backend: BackendProductVariant): ProductVariant {
 }
 
 /**
- * 後端 CategoryDTO 格式
- */
-interface BackendCategory {
-  id: number; // DTO 使用 id
-  name: string;
-  description?: string;
-  createdAt?: string;
-}
-
-/**
  * 轉換後端 CategoryDTO 為前端格式
+ * @param {Object} backend
+ * @returns {import('../types.js').Category}
  */
-function transformCategory(backend: BackendCategory): Category {
+function transformCategory(backend) {
   return {
     id: String(backend.id),
     name: backend.name,
@@ -117,51 +71,20 @@ function transformCategory(backend: BackendCategory): Category {
 }
 
 /**
- * 後端 OrderDTO 格式
- */
-interface BackendOrder {
-  id: number; // DTO 使用 id
-  userId?: number;
-  total: number; // DTO 使用 total
-  status: string;
-  paymentMethod?: string;
-  shippingMethod?: string;
-  recipientName?: string;
-  recipientPhone?: string;
-  shippingAddress?: string;
-  paymentNote?: string;
-  createdAt?: string;
-  items?: BackendOrderItem[];
-}
-
-/**
- * 後端 OrderItemDTO 格式
- */
-interface BackendOrderItem {
-  id: number;
-  variantId: number;
-  skuCode?: string;
-  productName?: string;
-  color?: string;
-  size?: string;
-  price: number;
-  quantity: number;
-  subtotal?: number;
-}
-
-/**
  * 轉換後端 OrderDTO 為前端格式
+ * @param {Object} backend
+ * @returns {Promise<import('../types.js').Order>}
  */
-async function transformOrder(backend: BackendOrder): Promise<Order> {
+async function transformOrder(backend) {
   // 轉換 orderItems
-  const items: OrderItem[] = [];
+  /** @type {import('../types.js').OrderItem[]} */
+  const items = [];
   if (backend.items) {
     for (const item of backend.items) {
-      // 需要取得完整的 variant 和 product 資訊
-      // 暫時使用 DTO 提供的資訊
-      const variant: ProductVariant = {
+      /** @type {import('../types.js').ProductVariant} */
+      const variant = {
         id: String(item.variantId),
-        productId: "", // 需要從 product API 取得
+        productId: "",
         skuCode: item.skuCode || "",
         color: item.color || "",
         size: item.size || "",
@@ -190,16 +113,14 @@ async function transformOrder(backend: BackendOrder): Promise<Order> {
     userId: backend.userId ? String(backend.userId) : undefined,
     items,
     total: Number(backend.total),
-    status: backend.status as OrderStatus,
-    paymentMethod: backend.paymentMethod as "BANK_TRANSFER" | "STORE_PICKUP",
+    status: backend.status,
+    paymentMethod: backend.paymentMethod,
     shippingDetails: backend.recipientName
       ? {
           fullName: backend.recipientName,
           phone: backend.recipientPhone || "",
           email: "",
-          method:
-            (backend.paymentMethod as "BANK_TRANSFER" | "STORE_PICKUP") ||
-            "BANK_TRANSFER",
+          method: backend.paymentMethod || "BANK_TRANSFER",
           address: backend.shippingAddress,
         }
       : undefined,
@@ -212,30 +133,18 @@ async function transformOrder(backend: BackendOrder): Promise<Order> {
 }
 
 /**
- * 後端 InquiryDTO 格式
- */
-interface BackendInquiry {
-  id: number; // DTO 使用 id
-  userId?: number;
-  name: string;
-  email: string;
-  message: string;
-  status: string;
-  createdAt?: string;
-  repliedAt?: string;
-}
-
-/**
  * 轉換後端 InquiryDTO 為前端格式
+ * @param {Object} backend
+ * @returns {import('../types.js').Inquiry}
  */
-function transformInquiry(backend: BackendInquiry): Inquiry {
+function transformInquiry(backend) {
   return {
     id: String(backend.id),
     userId: backend.userId ? String(backend.userId) : undefined,
     name: backend.name,
     email: backend.email,
     message: backend.message,
-    status: backend.status as "UNREAD" | "READ" | "REPLIED",
+    status: backend.status,
     createdAt: backend.createdAt,
     repliedAt: backend.repliedAt,
     date: backend.createdAt
@@ -245,28 +154,18 @@ function transformInquiry(backend: BackendInquiry): Inquiry {
 }
 
 /**
- * 後端 User 格式（Auth Response）
- */
-interface BackendUserResponse {
-  id: number;
-  email: string;
-  name: string;
-  phone?: string;
-  role: string;
-  token?: string;
-}
-
-/**
  * 轉換後端 User 為前端格式
+ * @param {Object} backend
+ * @returns {import('../types.js').User}
  */
-function transformUser(backend: BackendUserResponse): User {
+function transformUser(backend) {
   return {
     id: String(backend.id),
     email: backend.email,
     name: backend.name,
     phone: backend.phone,
     role: backend.role === "ADMIN" ? "ADMIN" : "MEMBER",
-    orders: [], // 需要額外 API 呼叫取得訂單
+    orders: [],
   };
 }
 
@@ -277,9 +176,10 @@ export const productApi = {
   /**
    * 取得所有商品
    * GET /api/products
+   * @returns {Promise<import('../types.js').Product[]>}
    */
-  async getAll(): Promise<Product[]> {
-    const backendProducts: BackendProduct[] = await apiGet("/products");
+  async getAll() {
+    const backendProducts = await apiGet("/products");
     const products = backendProducts.map(transformProduct);
 
     // 為每個商品取得 variants
@@ -304,11 +204,10 @@ export const productApi = {
   /**
    * 取得所有商品 (Admin) - 包含未上架
    * GET /api/products/admin/all
+   * @returns {Promise<import('../types.js').Product[]>}
    */
-  async getAllAdmin(): Promise<Product[]> {
-    const backendProducts: BackendProduct[] = await apiGet(
-      "/products/admin/all"
-    );
+  async getAllAdmin() {
+    const backendProducts = await apiGet("/products/admin/all");
     const products = backendProducts.map(transformProduct);
 
     const productsWithVariants = await Promise.all(
@@ -332,13 +231,14 @@ export const productApi = {
   /**
    * 取得單一商品
    * GET /api/products/:id
+   * @param {string} id
+   * @returns {Promise<import('../types.js').Product | undefined>}
    */
-  async getById(id: string): Promise<Product | undefined> {
+  async getById(id) {
     try {
-      const backend: BackendProduct = await apiGet(`/products/${id}`);
+      const backend = await apiGet(`/products/${id}`);
       const product = transformProduct(backend);
 
-      // 取得 variants
       try {
         const variants = await this.getVariants(id);
         product.variants = variants;
@@ -359,14 +259,13 @@ export const productApi = {
   /**
    * 依分類取得商品
    * GET /api/products/category/:categoryId
+   * @param {string} categoryId
+   * @returns {Promise<import('../types.js').Product[]>}
    */
-  async getByCategory(categoryId: string): Promise<Product[]> {
-    const backendProducts: BackendProduct[] = await apiGet(
-      `/products/category/${categoryId}`
-    );
+  async getByCategory(categoryId) {
+    const backendProducts = await apiGet(`/products/category/${categoryId}`);
     const products = backendProducts.map(transformProduct);
 
-    // 為每個商品取得 variants
     const productsWithVariants = await Promise.all(
       products.map(async (product) => {
         try {
@@ -388,14 +287,15 @@ export const productApi = {
   /**
    * 搜尋商品
    * GET /api/products/search?keyword=...
+   * @param {string} keyword
+   * @returns {Promise<import('../types.js').Product[]>}
    */
-  async search(keyword: string): Promise<Product[]> {
-    const backendProducts: BackendProduct[] = await apiGet(
+  async search(keyword) {
+    const backendProducts = await apiGet(
       `/products/search?keyword=${encodeURIComponent(keyword)}`
     );
     const products = backendProducts.map(transformProduct);
 
-    // 為每個商品取得 variants
     const productsWithVariants = await Promise.all(
       products.map(async (product) => {
         try {
@@ -417,33 +317,32 @@ export const productApi = {
   /**
    * 取得商品規格
    * GET /api/products/:productId/variants
+   * @param {string} productId
+   * @returns {Promise<import('../types.js').ProductVariant[]>}
    */
-  async getVariants(productId: string): Promise<ProductVariant[]> {
-    const backendVariants: BackendProductVariant[] = await apiGet(
-      `/products/${productId}/variants`
-    );
+  async getVariants(productId) {
+    const backendVariants = await apiGet(`/products/${productId}/variants`);
     return backendVariants.map(transformVariant);
   },
 
   /**
    * 新增商品 (Admin)
    * POST /api/products
+   * @param {Object} data
+   * @returns {Promise<import('../types.js').Product>}
    */
-  async create(
-    data: Omit<Product, "id" | "variants" | "totalStock">
-  ): Promise<Product> {
+  async create(data) {
     const requestBody = {
       categoryId: Number(data.categoryId),
       name: data.name,
       description: data.description,
       price: data.price,
-      imageUrl: data.imageUrl, // 後端接受 imageUrl
+      imageUrl: data.imageUrl,
       isListed: data.isListed ?? true,
     };
-    const backend: BackendProduct = await apiPost("/products", requestBody);
+    const backend = await apiPost("/products", requestBody);
     const product = transformProduct(backend);
 
-    // 取得 variants
     try {
       const variants = await this.getVariants(product.id);
       product.variants = variants;
@@ -458,10 +357,13 @@ export const productApi = {
   /**
    * 更新商品 (Admin)
    * PUT /api/products/:id
+   * @param {string} id
+   * @param {Object} data
+   * @returns {Promise<import('../types.js').Product | null>}
    */
-  async update(id: string, data: Partial<Product>): Promise<Product | null> {
+  async update(id, data) {
     try {
-      const requestBody: any = {};
+      const requestBody = {};
       if (data.categoryId) requestBody.categoryId = Number(data.categoryId);
       if (data.name) requestBody.name = data.name;
       if (data.description !== undefined)
@@ -470,13 +372,9 @@ export const productApi = {
       if (data.imageUrl !== undefined) requestBody.imageUrl = data.imageUrl;
       if (data.isListed !== undefined) requestBody.isListed = data.isListed;
 
-      const backend: BackendProduct = await apiPut(
-        `/products/${id}`,
-        requestBody
-      );
+      const backend = await apiPut(`/products/${id}`, requestBody);
       const product = transformProduct(backend);
 
-      // 取得 variants
       try {
         const variants = await this.getVariants(id);
         product.variants = variants;
@@ -497,8 +395,10 @@ export const productApi = {
   /**
    * 刪除商品 (Admin)
    * DELETE /api/products/:id
+   * @param {string} id
+   * @returns {Promise<boolean>}
    */
-  async delete(id: string): Promise<boolean> {
+  async delete(id) {
     try {
       await apiDelete(`/products/${id}`);
       return true;
@@ -510,9 +410,10 @@ export const productApi = {
   /**
    * 上傳商品圖片
    * POST /api/upload/image
+   * @param {File} file
+   * @returns {Promise<{ url: string }>}
    */
-  async uploadImage(file: File): Promise<{ url: string }> {
-    // 注意：後端尚未實作此端點，暫時回傳錯誤
+  async uploadImage(file) {
     throw new Error("Image upload endpoint not implemented yet");
   },
 };
@@ -524,55 +425,49 @@ export const variantApi = {
   /**
    * 取得商品所有規格
    * GET /api/variants/product/:productId
+   * @param {string} productId
+   * @returns {Promise<import('../types.js').ProductVariant[]>}
    */
-  async getByProductId(productId: string): Promise<ProductVariant[]> {
-    const backendVariants: BackendProductVariant[] = await apiGet(
-      `/variants/product/${productId}`
-    );
+  async getByProductId(productId) {
+    const backendVariants = await apiGet(`/variants/product/${productId}`);
     return backendVariants.map(transformVariant);
   },
 
   /**
    * 新增規格
    * POST /api/variants
+   * @param {string} productId
+   * @param {{ color: string; size: string; stock: number }} data
+   * @returns {Promise<import('../types.js').ProductVariant>}
    */
-  async create(
-    productId: string,
-    data: { color: string; size: string; stock: number }
-  ): Promise<ProductVariant> {
+  async create(productId, data) {
     const requestBody = {
       productId: Number(productId),
-      skuCode: "", // 後端會自動產生
+      skuCode: "",
       color: data.color,
       size: data.size,
       stock: data.stock,
     };
-    const backend: BackendProductVariant = await apiPost(
-      "/variants",
-      requestBody
-    );
+    const backend = await apiPost("/variants", requestBody);
     return transformVariant(backend);
   },
 
   /**
    * 更新規格
    * PUT /api/variants/:id
+   * @param {string} id
+   * @param {Object} data
+   * @returns {Promise<import('../types.js').ProductVariant | null>}
    */
-  async update(
-    id: string,
-    data: Partial<ProductVariant>
-  ): Promise<ProductVariant | null> {
+  async update(id, data) {
     try {
-      const requestBody: any = {};
+      const requestBody = {};
       if (data.color) requestBody.color = data.color;
       if (data.size) requestBody.size = data.size;
       if (data.stock !== undefined) requestBody.stock = data.stock;
       if (data.skuCode) requestBody.skuCode = data.skuCode;
 
-      const backend: BackendProductVariant = await apiPut(
-        `/variants/${id}`,
-        requestBody
-      );
+      const backend = await apiPut(`/variants/${id}`, requestBody);
       return transformVariant(backend);
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
@@ -585,8 +480,10 @@ export const variantApi = {
   /**
    * 刪除規格
    * DELETE /api/variants/:id
+   * @param {string} id
+   * @returns {Promise<boolean>}
    */
-  async delete(id: string): Promise<boolean> {
+  async delete(id) {
     try {
       await apiDelete(`/variants/${id}`);
       return true;
@@ -603,28 +500,32 @@ export const orderApi = {
   /**
    * 取得所有訂單 (Admin)
    * GET /api/orders
+   * @returns {Promise<import('../types.js').Order[]>}
    */
-  async getAll(): Promise<Order[]> {
-    const backendOrders: BackendOrder[] = await apiGet("/orders");
+  async getAll() {
+    const backendOrders = await apiGet("/orders");
     return Promise.all(backendOrders.map(transformOrder));
   },
 
   /**
    * 取得自己的訂單
    * GET /api/orders/my
+   * @returns {Promise<import('../types.js').Order[]>}
    */
-  async getMy(): Promise<Order[]> {
-    const backendOrders: BackendOrder[] = await apiGet("/orders/my");
+  async getMy() {
+    const backendOrders = await apiGet("/orders/my");
     return Promise.all(backendOrders.map(transformOrder));
   },
 
   /**
    * 取得單一訂單
    * GET /api/orders/:id
+   * @param {string} id
+   * @returns {Promise<import('../types.js').Order | undefined>}
    */
-  async getById(id: string): Promise<Order | undefined> {
+  async getById(id) {
     try {
-      const backend: BackendOrder = await apiGet(`/orders/${id}`);
+      const backend = await apiGet(`/orders/${id}`);
       return transformOrder(backend);
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
@@ -637,12 +538,10 @@ export const orderApi = {
   /**
    * 建立新訂單
    * POST /api/orders
+   * @param {{ items: import('../types.js').CartItem[]; shippingDetails: import('../types.js').ShippingDetails }} orderData
+   * @returns {Promise<import('../types.js').Order>}
    */
-  async create(orderData: {
-    items: CartItem[];
-    shippingDetails: ShippingDetails;
-  }): Promise<Order> {
-    // 轉換 CartItem[] 為後端 OrderItemRequest[]
+  async create(orderData) {
     const items = orderData.items.map((item) => ({
       variantId: Number(item.variant.id),
       quantity: item.quantity,
@@ -661,15 +560,18 @@ export const orderApi = {
       items,
     };
 
-    const backend: BackendOrder = await apiPost("/orders", requestBody);
+    const backend = await apiPost("/orders", requestBody);
     return transformOrder(backend);
   },
 
   /**
    * 更新訂單狀態 (Admin)
    * PATCH /api/orders/:id/status
+   * @param {string} id
+   * @param {import('../types.js').OrderStatus} status
+   * @returns {Promise<boolean>}
    */
-  async updateStatus(id: string, status: OrderStatus): Promise<boolean> {
+  async updateStatus(id, status) {
     try {
       await apiPatch(`/orders/${id}/status`, { status });
       return true;
@@ -681,8 +583,11 @@ export const orderApi = {
   /**
    * 更新訂單付款備註
    * PATCH /api/orders/:id/payment-note
+   * @param {string} id
+   * @param {string} note
+   * @returns {Promise<boolean>}
    */
-  async updatePaymentNote(id: string, note: string): Promise<boolean> {
+  async updatePaymentNote(id, note) {
     try {
       await apiPatch(`/orders/${id}/payment-note`, { paymentNote: note });
       return true;
@@ -699,30 +604,31 @@ export const inquiryApi = {
   /**
    * 取得所有詢問 (Admin)
    * GET /api/inquiries
+   * @returns {Promise<import('../types.js').Inquiry[]>}
    */
-  async getAll(): Promise<Inquiry[]> {
-    const backendInquiries: BackendInquiry[] = await apiGet("/inquiries");
+  async getAll() {
+    const backendInquiries = await apiGet("/inquiries");
     return backendInquiries.map(transformInquiry);
   },
 
   /**
    * 送出聯絡詢問
    * POST /api/inquiries
+   * @param {{ name: string; email: string; message: string }} data
+   * @returns {Promise<import('../types.js').Inquiry>}
    */
-  async create(data: {
-    name: string;
-    email: string;
-    message: string;
-  }): Promise<Inquiry> {
-    const backend: BackendInquiry = await apiPost("/inquiries", data);
+  async create(data) {
+    const backend = await apiPost("/inquiries", data);
     return transformInquiry(backend);
   },
 
   /**
    * 標記已回覆 (Admin)
    * PATCH /api/inquiries/:id/reply
+   * @param {string} id
+   * @returns {Promise<boolean>}
    */
-  async markAsReplied(id: string): Promise<boolean> {
+  async markAsReplied(id) {
     try {
       await apiPatch(`/inquiries/${id}/reply`);
       return true;
@@ -739,11 +645,12 @@ export const authApi = {
   /**
    * 使用者登入
    * POST /api/auth/login
+   * @param {{ email: string; password: string }} data
+   * @returns {Promise<import('../types.js').User>}
    */
-  async login(data: { email: string; password: string }): Promise<User> {
-    const backend: BackendUserResponse = await apiPost("/auth/login", data);
+  async login(data) {
+    const backend = await apiPost("/auth/login", data);
 
-    // 儲存 token
     if (backend.token) {
       setToken(backend.token);
     }
@@ -754,16 +661,12 @@ export const authApi = {
   /**
    * 註冊新會員
    * POST /api/auth/register
+   * @param {{ name: string; email: string; password: string; phone?: string }} data
+   * @returns {Promise<import('../types.js').User>}
    */
-  async register(data: {
-    name: string;
-    email: string;
-    password: string;
-    phone?: string;
-  }): Promise<User> {
-    const backend: BackendUserResponse = await apiPost("/auth/register", data);
+  async register(data) {
+    const backend = await apiPost("/auth/register", data);
 
-    // 儲存 token
     if (backend.token) {
       setToken(backend.token);
     }
@@ -774,10 +677,11 @@ export const authApi = {
   /**
    * 取得目前使用者
    * GET /api/auth/me
+   * @returns {Promise<import('../types.js').User | null>}
    */
-  async getMe(): Promise<User | null> {
+  async getMe() {
     try {
-      const backend: BackendUserResponse = await apiGet("/auth/me");
+      const backend = await apiGet("/auth/me");
       return transformUser(backend);
     } catch {
       return null;
@@ -787,8 +691,9 @@ export const authApi = {
   /**
    * 登出
    * POST /api/auth/logout
+   * @returns {Promise<void>}
    */
-  async logout(): Promise<void> {
+  async logout() {
     try {
       await apiPost("/auth/logout");
     } finally {
@@ -804,19 +709,22 @@ export const categoryApi = {
   /**
    * 取得所有分類
    * GET /api/categories
+   * @returns {Promise<import('../types.js').Category[]>}
    */
-  async getAll(): Promise<Category[]> {
-    const backendCategories: BackendCategory[] = await apiGet("/categories");
+  async getAll() {
+    const backendCategories = await apiGet("/categories");
     return backendCategories.map(transformCategory);
   },
 
   /**
    * 取得單一分類
    * GET /api/categories/:id
+   * @param {string} id
+   * @returns {Promise<import('../types.js').Category | undefined>}
    */
-  async getById(id: string): Promise<Category | undefined> {
+  async getById(id) {
     try {
-      const backend: BackendCategory = await apiGet(`/categories/${id}`);
+      const backend = await apiGet(`/categories/${id}`);
       return transformCategory(backend);
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
@@ -829,19 +737,24 @@ export const categoryApi = {
   /**
    * 新增分類 (Admin)
    * POST /api/categories
+   * @param {Object} data
+   * @returns {Promise<import('../types.js').Category>}
    */
-  async create(data: Omit<Category, "id">): Promise<Category> {
-    const backend: BackendCategory = await apiPost("/categories", data);
+  async create(data) {
+    const backend = await apiPost("/categories", data);
     return transformCategory(backend);
   },
 
   /**
    * 更新分類 (Admin)
    * PUT /api/categories/:id
+   * @param {string} id
+   * @param {Object} data
+   * @returns {Promise<import('../types.js').Category | null>}
    */
-  async update(id: string, data: Partial<Category>): Promise<Category | null> {
+  async update(id, data) {
     try {
-      const backend: BackendCategory = await apiPut(`/categories/${id}`, data);
+      const backend = await apiPut(`/categories/${id}`, data);
       return transformCategory(backend);
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) {
@@ -854,8 +767,10 @@ export const categoryApi = {
   /**
    * 刪除分類 (Admin)
    * DELETE /api/categories/:id
+   * @param {string} id
+   * @returns {Promise<boolean>}
    */
-  async delete(id: string): Promise<boolean> {
+  async delete(id) {
     try {
       await apiDelete(`/categories/${id}`);
       return true;
@@ -871,13 +786,19 @@ export const categoryApi = {
 const FEATURED_STORAGE_KEY = "komorebi_featured_products";
 const MAX_FEATURED = 5;
 
-const saveFeaturedToStorage = (ids: string[]) => {
+/**
+ * @param {string[]} ids
+ */
+const saveFeaturedToStorage = (ids) => {
   if (typeof window !== "undefined") {
     localStorage.setItem(FEATURED_STORAGE_KEY, JSON.stringify(ids));
   }
 };
 
-const loadFeaturedFromStorage = (): string[] => {
+/**
+ * @returns {string[]}
+ */
+const loadFeaturedFromStorage = () => {
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem(FEATURED_STORAGE_KEY);
     if (saved) {
@@ -894,31 +815,30 @@ const loadFeaturedFromStorage = (): string[] => {
 export const featuredApi = {
   /**
    * 取得所有新品上架商品 IDs
-   * GET /api/featured (待後端實作)
+   * @returns {Promise<string[]>}
    */
-  async getAll(): Promise<string[]> {
-    // 暫時使用 localStorage
+  async getAll() {
     return loadFeaturedFromStorage();
   },
 
   /**
    * 取得新品上架商品列表
-   * GET /api/featured/products (待後端實作)
+   * @returns {Promise<import('../types.js').Product[]>}
    */
-  async getProducts(): Promise<Product[]> {
+  async getProducts() {
     const featuredIds = await this.getAll();
     if (featuredIds.length === 0) return [];
 
-    // 取得所有商品並過濾
     const allProducts = await productApi.getAll();
     return allProducts.filter((p) => featuredIds.includes(p.id));
   },
 
   /**
    * 新增商品到新品上架
-   * POST /api/featured/:productId (待後端實作)
+   * @param {string} productId
+   * @returns {Promise<{ success: boolean; message: string }>}
    */
-  async add(productId: string): Promise<{ success: boolean; message: string }> {
+  async add(productId) {
     const featuredIds = loadFeaturedFromStorage();
 
     if (featuredIds.includes(productId)) {
@@ -939,11 +859,10 @@ export const featuredApi = {
 
   /**
    * 從新品上架移除商品
-   * DELETE /api/featured/:productId (待後端實作)
+   * @param {string} productId
+   * @returns {Promise<{ success: boolean; message: string }>}
    */
-  async remove(
-    productId: string
-  ): Promise<{ success: boolean; message: string }> {
+  async remove(productId) {
     const featuredIds = loadFeaturedFromStorage();
     const index = featuredIds.indexOf(productId);
 
@@ -958,11 +877,10 @@ export const featuredApi = {
 
   /**
    * 切換商品新品上架狀態
-   * POST /api/featured/:productId/toggle (待後端實作)
+   * @param {string} productId
+   * @returns {Promise<{ isFeatured: boolean; message: string }>}
    */
-  async toggle(
-    productId: string
-  ): Promise<{ isFeatured: boolean; message: string }> {
+  async toggle(productId) {
     const featuredIds = loadFeaturedFromStorage();
     const index = featuredIds.indexOf(productId);
 
@@ -985,22 +903,11 @@ export const featuredApi = {
 };
 
 /**
- * 後端 CartItem 格式
- */
-interface BackendCartItem {
-  cartItemId: number;
-  variantId?: number;
-  variant?: BackendProductVariant & {
-    product?: BackendProduct;
-  };
-  quantity: number;
-  createdAt?: string;
-}
-
-/**
  * 轉換後端 CartItem 為前端格式
+ * @param {Object} backend
+ * @returns {import('../types.js').CartItem}
  */
-function transformCartItem(backend: BackendCartItem): CartItem {
+function transformCartItem(backend) {
   if (!backend.variant) {
     throw new Error("CartItem missing variant information");
   }
@@ -1032,18 +939,22 @@ export const cartApi = {
   /**
    * 取得購物車
    * GET /api/cart
+   * @returns {Promise<import('../types.js').CartItem[]>}
    */
-  async getAll(): Promise<CartItem[]> {
-    const backendCartItems: BackendCartItem[] = await apiGet("/cart");
+  async getAll() {
+    const backendCartItems = await apiGet("/cart");
     return backendCartItems.map(transformCartItem);
   },
 
   /**
    * 加入購物車
    * POST /api/cart
+   * @param {string} variantId
+   * @param {number} quantity
+   * @returns {Promise<import('../types.js').CartItem>}
    */
-  async add(variantId: string, quantity: number): Promise<CartItem> {
-    const backend: BackendCartItem = await apiPost("/cart", {
+  async add(variantId, quantity) {
+    const backend = await apiPost("/cart", {
       variantId: Number(variantId),
       quantity,
     });
@@ -1053,50 +964,47 @@ export const cartApi = {
   /**
    * 更新數量
    * PUT /api/cart/:id
+   * @param {string} cartItemId
+   * @param {number} quantity
+   * @returns {Promise<void>}
    */
-  async updateQuantity(cartItemId: string, quantity: number): Promise<void> {
+  async updateQuantity(cartItemId, quantity) {
     await apiPut(`/cart/${cartItemId}`, { quantity });
   },
 
   /**
    * 移除項目
    * DELETE /api/cart/:id
+   * @param {string} cartItemId
+   * @returns {Promise<void>}
    */
-  async remove(cartItemId: string): Promise<void> {
+  async remove(cartItemId) {
     await apiDelete(`/cart/${cartItemId}`);
   },
 
   /**
    * 清空購物車
    * DELETE /api/cart
+   * @returns {Promise<void>}
    */
-  async clear(): Promise<void> {
+  async clear() {
     await apiDelete("/cart");
   },
 };
 
 /**
- * 後端 UserProfileResponse 格式
- */
-interface BackendUserProfile {
-  id: number;
-  email: string;
-  name: string;
-  phone?: string;
-  role: string;
-}
-
-/**
  * 轉換後端 UserProfile 為前端格式
+ * @param {Object} backend
+ * @returns {import('../types.js').User}
  */
-function transformUserProfile(backend: BackendUserProfile): User {
+function transformUserProfile(backend) {
   return {
     id: String(backend.id),
     email: backend.email,
     name: backend.name,
     phone: backend.phone,
     role: backend.role === "ADMIN" ? "ADMIN" : "MEMBER",
-    orders: [], // 需要額外 API 呼叫取得訂單
+    orders: [],
   };
 }
 
@@ -1107,10 +1015,11 @@ export const userApi = {
   /**
    * 取得個人資料
    * GET /api/users/me
+   * @returns {Promise<import('../types.js').User | null>}
    */
-  async getMe(): Promise<User | null> {
+  async getMe() {
     try {
-      const backend: BackendUserProfile = await apiGet("/users/me");
+      const backend = await apiGet("/users/me");
       return transformUserProfile(backend);
     } catch {
       return null;
@@ -1120,13 +1029,11 @@ export const userApi = {
   /**
    * 更新個人資料
    * PUT /api/users/me
+   * @param {{ name?: string; phone?: string; newPassword?: string }} data
+   * @returns {Promise<import('../types.js').User>}
    */
-  async updateMe(data: {
-    name?: string;
-    phone?: string;
-    newPassword?: string;
-  }): Promise<User> {
-    const backend: BackendUserProfile = await apiPut("/users/me", data);
+  async updateMe(data) {
+    const backend = await apiPut("/users/me", data);
     return transformUserProfile(backend);
   },
 };

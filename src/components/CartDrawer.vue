@@ -1,23 +1,22 @@
-<script setup lang="ts">
+<script setup>
 import { computed } from "vue";
-import type { CartItem, Product } from "../types";
 
-const props = defineProps<{
-  isOpen: boolean;
-  cartItems: CartItem[];
-  products: Product[];
-}>();
+const props = defineProps({
+  isOpen: Boolean,
+  cartItems: Array,
+  products: Array,
+});
 
-const emit = defineEmits<{
-  (e: "close"): void;
-  (e: "remove-item", variantId: string): void;
-  (e: "update-quantity", variantId: string, delta: number): void;
-  (e: "set-quantity", variantId: string, quantity: number): void;
-  (e: "checkout"): void;
-}>();
+const emit = defineEmits([
+  "close",
+  "remove-item",
+  "update-quantity",
+  "set-quantity",
+  "checkout",
+]);
 
 // Helper: 取得規格的即時庫存狀態
-const getStockInfo = (item: CartItem) => {
+const getStockInfo = (item) => {
   // 從即時商品資料中找到對應的規格
   const realTimeProduct = props.products.find((p) => p.id === item.product.id);
   const realTimeVariant = realTimeProduct?.variants?.find(
@@ -60,8 +59,8 @@ const disableCheckout = computed(
     validation.value.hasInsufficient
 );
 
-const handleInput = (variantId: string, event: Event) => {
-  const val = parseInt((event.target as HTMLInputElement).value, 10);
+const handleInput = (variantId, event) => {
+  const val = parseInt(event.target.value, 10);
   if (!isNaN(val) && val > 0) {
     emit("set-quantity", variantId, val);
   } else {
