@@ -27,6 +27,7 @@
 
     <!-- Scroll Indicator -->
     <div
+      v-if="products && products.length > 0"
       class="absolute bottom-12 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2 opacity-50"
     >
       <span class="text-[10px] tracking-widest uppercase">Scroll</span>

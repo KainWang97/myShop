@@ -9,7 +9,10 @@ const emit = defineEmits(["product-click"]);
 </script>
 
 <template>
-  <section class="bg-washi py-32 overflow-hidden">
+  <section
+    v-if="products && products.length > 0"
+    class="bg-washi py-32 overflow-hidden"
+  >
     <div class="max-w-7xl mx-auto px-6 mb-24 text-center">
       <h2 class="text-xl font-serif text-sumi tracking-widest mb-4">
         新品上架
@@ -19,12 +22,7 @@ const emit = defineEmits(["product-click"]);
       </p>
     </div>
 
-    <div v-if="products.length === 0" class="text-center text-stone-400 py-12">
-      <p class="text-sm">目前沒有新品上架</p>
-      <p class="text-xs mt-2">管理員可在後台設定精選商品</p>
-    </div>
-
-    <div v-else class="max-w-6xl mx-auto space-y-32 px-6">
+    <div class="max-w-6xl mx-auto space-y-32 px-6">
       <SeasonalItem
         v-for="(product, index) in products"
         :key="product.id"
