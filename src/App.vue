@@ -11,13 +11,18 @@ import AuthModal from "./components/AuthModal.vue";
 import CartDrawer from "./components/CartDrawer.vue";
 import ConfirmModal from "./components/ConfirmModal.vue";
 import CartToast from "./components/CartToast.vue";
+import ToastNotification from "./components/ToastNotification.vue";
 import { useConfirm } from "./composables/useConfirm.js";
+import { useToast } from "./composables/useToast.js";
 
 const router = useRouter();
 const route = useRoute();
 
 // Confirm Modal
 const { state: confirmState, handleConfirm, handleCancel } = useConfirm();
+
+// Toast Notification
+const { toast } = useToast();
 
 // App Data State
 const products = ref([]);
@@ -237,7 +242,7 @@ const handleAddToCart = async (product, variant) => {
       });
     }
   }
-  showCartToast.value = true;
+  toast.success("已加入購物車");
 };
 
 const handleRemoveFromCart = async (variantId) => {
@@ -363,12 +368,14 @@ const handlePlaceOrder = async (shippingDetails) => {
       // 導向會員中心
       router.push("/account");
 
+      toast.success("訂單已成功建立！");
+
       if (shippingDetails.method === "BANK_TRANSFER") {
         setTimeout(() => {
-          alert(
-            "訂單已成功建立！\n\n請於匯款後，在訂單備註中補充以下資訊：\n• 匯款帳號末五碼\n• 匯款金額\n• 匯款時間"
+          toast.info(
+            "請於匯款後，在訂單備註中補充匯款帳號末五碼、匯款金額及匯款時間"
           );
-        }, 300);
+        }, 500);
       }
     }
   } catch (error) {
@@ -442,6 +449,8 @@ const handleLogin = async (loggedInUser) => {
     router.push(postLoginRedirect.value);
     postLoginRedirect.value = null;
   }
+
+  toast.success("登入成功");
 };
 
 const handleLogout = async () => {
@@ -453,6 +462,7 @@ const handleLogout = async () => {
     user.value = null;
     reloadProductsForCurrentRole();
     router.push("/");
+    toast.success("登出成功");
   }
 };
 
@@ -717,6 +727,7 @@ provide("handleDeleteVariant", handleDeleteVariant);
 provide("handleToggleFeatured", handleToggleFeatured);
 provide("handleLogout", handleLogout);
 provide("handleUpdatePaymentNote", handleUpdatePaymentNote);
+provide("toast", toast);
 
 // 判斷是否隱藏 Footer (在 Admin 頁面)
 const hideFooter = computed(() => route.path.startsWith("/admin"));
@@ -777,5 +788,8 @@ const hideFooter = computed(() => route.path.startsWith("/admin"));
 
     <!-- Cart Toast -->
     <CartToast :show="showCartToast" @close="showCartToast = false" />
+
+    <!-- Global Toast Notification -->
+    <ToastNotification />
   </div>
 </template>
