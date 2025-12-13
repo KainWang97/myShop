@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
+import { useConfirm } from "../composables/useConfirm.js";
 
 const props = defineProps({
   cartItems: Array,
@@ -8,6 +9,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["place-order", "back"]);
+
+const { confirm } = useConfirm();
 
 const step = ref("INFO");
 const paymentMethod = ref("BANK_TRANSFER");
@@ -39,7 +42,18 @@ const handleSubmitInfo = () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-const handleFinalSubmit = () => {
+const handleFinalSubmit = async () => {
+  // 下訂前確認
+  const confirmed = await confirm({
+    title: "確認下訂",
+    message: `確定要送出此訂單嗎？\n\n訂單總金額：$${finalTotal.value}`,
+    confirmText: "確認下訂",
+    cancelText: "取消",
+    variant: "default",
+  });
+
+  if (!confirmed) return;
+
   isPlacingOrder.value = true;
   emit("place-order", { ...formData.value, method: paymentMethod.value });
 };
@@ -80,6 +94,7 @@ const handleFinalSubmit = () => {
                 required
                 type="email"
                 v-model="formData.email"
+                placeholder="您的電子郵件地址"
                 class="w-full bg-transparent border-b border-stone-300 py-2 focus:outline-none focus:border-sumi transition-colors rounded-none"
               />
             </div>
@@ -92,6 +107,7 @@ const handleFinalSubmit = () => {
                 required
                 type="text"
                 v-model="formData.fullName"
+                placeholder="收件人姓名"
                 class="w-full bg-transparent border-b border-stone-300 py-2 focus:outline-none focus:border-sumi transition-colors rounded-none"
               />
             </div>
@@ -104,6 +120,7 @@ const handleFinalSubmit = () => {
                 required
                 type="tel"
                 v-model="formData.phone"
+                placeholder="聯絡電話（例：0912345678）"
                 class="w-full bg-transparent border-b border-stone-300 py-2 focus:outline-none focus:border-sumi transition-colors rounded-none"
               />
             </div>
@@ -203,6 +220,7 @@ const handleFinalSubmit = () => {
                   <input
                     required
                     v-model="formData.city"
+                    placeholder="縣市（例：台北市）"
                     class="w-full bg-transparent border-b border-stone-300 py-2 focus:outline-none focus:border-sumi rounded-none"
                   />
                 </div>
@@ -216,6 +234,7 @@ const handleFinalSubmit = () => {
                 <input
                   required
                   v-model="formData.address"
+                  placeholder="詳細地址（例：信義區松高路1號10樓）"
                   class="w-full bg-transparent border-b border-stone-300 py-2 focus:outline-none focus:border-sumi rounded-none"
                 />
               </div>

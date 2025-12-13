@@ -211,9 +211,9 @@ const toggleMode = () => {
         v-if="isLogin"
         class="mt-6 p-4 bg-stone-100/50 text-xs text-stone-500"
       >
-        <p class="font-medium mb-2">測試帳號：</p>
+        <!-- <p class="font-medium mb-2">測試帳號：</p>
         <p>管理員：admin@komorebi.com / admin</p>
-        <p>會員：test@test.com / test123</p>
+        <p>會員：test@test.com / test123</p> -->
       </div>
     </div>
   </div>

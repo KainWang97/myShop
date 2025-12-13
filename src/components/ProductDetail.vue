@@ -19,14 +19,27 @@ const availableColors = computed(() => {
   return Array.from(colors);
 });
 
-// 取得目前顏色下可選的尺寸
+// 尺寸排序順序 (F → S → M → L → XL)
+const sizeOrder = ["F", "S", "M", "L", "XL", "XXL", "XXXL"];
+
+// 取得目前顏色下可選的尺寸（已排序）
 const availableSizes = computed(() => {
   if (!selectedVariant.value) return [];
   const sizes =
     props.product.variants
       ?.filter((v) => v.color === selectedVariant.value?.color)
       .map((v) => v.size) || [];
-  return Array.from(new Set(sizes));
+  const uniqueSizes = Array.from(new Set(sizes));
+
+  // 根據預定義順序排序
+  return uniqueSizes.sort((a, b) => {
+    const indexA = sizeOrder.indexOf(a.toUpperCase());
+    const indexB = sizeOrder.indexOf(b.toUpperCase());
+    // 如果尺寸不在預定義列表中，放到最後
+    const orderA = indexA === -1 ? 999 : indexA;
+    const orderB = indexB === -1 ? 999 : indexB;
+    return orderA - orderB;
+  });
 });
 
 // 是否只有單一規格

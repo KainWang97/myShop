@@ -94,6 +94,11 @@ onMounted(async () => {
         } else {
           const ordersData = await api.orders.getMy();
           allOrders.value = ordersData;
+          // 確保會員訂單資料也設置到 user.orders
+          user.value = { ...user.value, orders: ordersData };
+          // 載入會員購物車
+          const cartData = await api.cart.getAll();
+          cart.value = cartData;
         }
       } catch (error) {
         console.error("Failed to load user data:", error);
@@ -153,8 +158,56 @@ const handleContactClick = () => {
 
 // ============================================
 // Cart Logic (以 variantId 為單位)
+// 登入會員：同步到資料庫；未登入：本地操作
 // ============================================
-const handleAddToCart = (product, variant) => {
+
+// 載入會員購物車（並補充完整商品資訊）
+const loadUserCart = async () => {
+  if (!user.value) return;
+  try {
+    const cartItems = await api.cart.getAll();
+
+    // 用 products 資料補充購物車項目的商品資訊
+    const enrichedCartItems = cartItems.map((item) => {
+      // 從 products 中找到對應的商品
+      const realProduct = products.value.find((p) => p.id === item.product.id);
+      if (realProduct) {
+        // 用完整商品資訊替換
+        const realVariant = realProduct.variants?.find(
+          (v) => v.id === item.variant.id
+        );
+        return {
+          ...item,
+          cartItemId: item.cartItemId,
+          product: realProduct,
+          variant: realVariant || item.variant,
+        };
+      }
+      return item;
+    });
+
+    cart.value = enrichedCartItems;
+  } catch (error) {
+    console.error("Failed to load cart:", error);
+  }
+};
+
+// 合併本地購物車到資料庫（登入時使用）
+const mergeLocalCartToDatabase = async () => {
+  if (!user.value || cart.value.length === 0) return;
+
+  try {
+    for (const item of cart.value) {
+      await api.cart.add(item.variant.id, item.quantity);
+    }
+    // 重新載入合併後的購物車
+    await loadUserCart();
+  } catch (error) {
+    console.error("Failed to merge cart:", error);
+  }
+};
+
+const handleAddToCart = async (product, variant) => {
   const stock = variant.stock || 0;
   if (stock <= 0) return;
 
@@ -164,55 +217,106 @@ const handleAddToCart = (product, variant) => {
     return;
   }
 
-  if (existing) {
-    existing.quantity++;
+  // 已登入會員：同步到資料庫
+  if (user.value) {
+    try {
+      await api.cart.add(variant.id, 1);
+      await loadUserCart();
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    }
   } else {
-    cart.value.push({
-      product,
-      variant,
-      quantity: 1,
-    });
+    // 未登入：本地操作
+    if (existing) {
+      existing.quantity++;
+    } else {
+      cart.value.push({
+        product,
+        variant,
+        quantity: 1,
+      });
+    }
   }
   showCartToast.value = true;
 };
 
-const handleRemoveFromCart = (variantId) => {
-  cart.value = cart.value.filter((item) => item.variant.id !== variantId);
-};
-
-const handleUpdateQuantity = (variantId, delta) => {
-  const item = cart.value.find((item) => item.variant.id === variantId);
-  if (item) {
-    const realTimeProduct = products.value.find(
-      (p) => p.id === item.product.id
-    );
-    const realTimeVariant = realTimeProduct?.variants?.find(
-      (v) => v.id === variantId
-    );
-    const stock = realTimeVariant?.stock || 0;
-
-    if (delta > 0 && item.quantity + delta > stock) return;
-
-    const newQty = item.quantity + delta;
-    if (newQty > 0) item.quantity = newQty;
-    else handleRemoveFromCart(variantId);
+const handleRemoveFromCart = async (variantId) => {
+  // 已登入會員：從資料庫刪除
+  if (user.value) {
+    const item = cart.value.find((item) => item.variant.id === variantId);
+    if (item && item.cartItemId) {
+      try {
+        await api.cart.remove(item.cartItemId);
+        await loadUserCart();
+      } catch (error) {
+        console.error("Failed to remove from cart:", error);
+      }
+    } else {
+      // 備用：本地過濾
+      cart.value = cart.value.filter((item) => item.variant.id !== variantId);
+    }
+  } else {
+    // 未登入：本地操作
+    cart.value = cart.value.filter((item) => item.variant.id !== variantId);
   }
 };
 
-const handleSetQuantity = (variantId, quantity) => {
+const handleUpdateQuantity = async (variantId, delta) => {
   const item = cart.value.find((item) => item.variant.id === variantId);
-  if (item) {
-    const realTimeProduct = products.value.find(
-      (p) => p.id === item.product.id
-    );
-    const realTimeVariant = realTimeProduct?.variants?.find(
-      (v) => v.id === variantId
-    );
-    const stock = realTimeVariant?.stock || 0;
+  if (!item) return;
 
-    let newQty = Math.floor(quantity);
-    if (isNaN(newQty) || newQty < 1) newQty = 1;
-    if (stock > 0 && newQty > stock) newQty = stock;
+  const realTimeProduct = products.value.find((p) => p.id === item.product.id);
+  const realTimeVariant = realTimeProduct?.variants?.find(
+    (v) => v.id === variantId
+  );
+  const stock = realTimeVariant?.stock || 0;
+
+  if (delta > 0 && item.quantity + delta > stock) return;
+
+  const newQty = item.quantity + delta;
+  if (newQty <= 0) {
+    handleRemoveFromCart(variantId);
+    return;
+  }
+
+  // 已登入會員：更新資料庫
+  if (user.value && item.cartItemId) {
+    try {
+      await api.cart.updateQuantity(item.cartItemId, newQty);
+      await loadUserCart();
+    } catch (error) {
+      console.error("Failed to update quantity:", error);
+      item.quantity = newQty; // 備用：本地更新
+    }
+  } else {
+    item.quantity = newQty;
+  }
+};
+
+const handleSetQuantity = async (variantId, quantity) => {
+  const item = cart.value.find((item) => item.variant.id === variantId);
+  if (!item) return;
+
+  const realTimeProduct = products.value.find((p) => p.id === item.product.id);
+  const realTimeVariant = realTimeProduct?.variants?.find(
+    (v) => v.id === variantId
+  );
+  const stock = realTimeVariant?.stock || 0;
+
+  let newQty = Math.floor(quantity);
+  if (isNaN(newQty) || newQty < 1) newQty = 1;
+  if (stock > 0 && newQty > stock) newQty = stock;
+
+  // 已登入會員：更新資料庫
+  if (user.value && item.cartItemId) {
+    try {
+      await api.cart.updateQuantity(item.cartItemId, newQty);
+      await loadUserCart();
+    } catch (error) {
+      console.error("Failed to set quantity:", error);
+      item.quantity = newQty;
+    }
+  } else {
     item.quantity = newQty;
   }
 };
@@ -285,6 +389,9 @@ const handleAuthClose = () => {
 };
 
 const handleLogin = async (loggedInUser) => {
+  // 保存登入前的本地購物車
+  const localCart = [...cart.value];
+
   user.value = loggedInUser;
   isAuthOpen.value = false;
 
@@ -308,7 +415,29 @@ const handleLogin = async (loggedInUser) => {
     return;
   }
 
-  // 一般會員
+  // 一般會員：載入會員訂單與購物車
+  try {
+    const ordersData = await api.orders.getMy();
+    allOrders.value = ordersData;
+    user.value = { ...user.value, orders: ordersData };
+  } catch (error) {
+    console.error("Failed to load member orders:", error);
+  }
+
+  // 合併本地購物車到資料庫
+  if (localCart.length > 0) {
+    try {
+      for (const item of localCart) {
+        await api.cart.add(item.variant.id, item.quantity);
+      }
+    } catch (error) {
+      console.error("Failed to merge local cart:", error);
+    }
+  }
+
+  // 載入資料庫購物車
+  await loadUserCart();
+
   if (postLoginRedirect.value) {
     router.push(postLoginRedirect.value);
     postLoginRedirect.value = null;
@@ -480,7 +609,13 @@ const handleDeleteVariant = async (id) => {
 const handleUpdatePaymentNote = async (orderId, note) => {
   try {
     await api.orders.updatePaymentNote(orderId, note);
-    allOrders.value = await api.orders.getAll();
+
+    // 根據用戶角色呼叫正確的 API
+    if (user.value?.role === "ADMIN") {
+      allOrders.value = await api.orders.getAll();
+    } else {
+      allOrders.value = await api.orders.getMy();
+    }
 
     if (user.value) {
       const updatedOrders = user.value.orders.map((o) =>

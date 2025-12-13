@@ -45,9 +45,11 @@ function transformProduct(backend) {
  * @returns {import('../types.js').ProductVariant}
  */
 function transformVariant(backend) {
+  // 後端可能使用 id 或 variantId
+  const variantId = backend.id ?? backend.variantId;
   return {
-    id: String(backend.id),
-    productId: String(backend.productId),
+    id: String(variantId),
+    productId: String(backend.productId || ""),
     skuCode: backend.skuCode,
     color: backend.color,
     size: backend.size,
@@ -916,7 +918,8 @@ function transformCartItem(backend) {
   const product = backend.variant.product
     ? transformProduct(backend.variant.product)
     : {
-        id: String(backend.variant.productId),
+        // 使用轉換後的 variant.productId（已經從後端 getProductId() 取得）
+        id: variant.productId || "",
         categoryId: "",
         name: "",
         description: "",
@@ -926,6 +929,7 @@ function transformCartItem(backend) {
       };
 
   return {
+    cartItemId: backend.cartItemId ? String(backend.cartItemId) : undefined,
     product,
     variant,
     quantity: backend.quantity,
