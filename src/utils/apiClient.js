@@ -1,6 +1,7 @@
 /**
  * API Client Utility
- * 使用 axios 處理統一的 API 請求、JWT token、錯誤處理
+ * 使用 axios 處理統一的 API 請求、錯誤處理
+ * JWT token 透過 HttpOnly Cookie 自動傳送
  */
 import axios from "axios";
 
@@ -8,59 +9,14 @@ import axios from "axios";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/chooseMVP/api";
 
-// Token 儲存 key
-const TOKEN_KEY = "komorebi_auth_token";
-
-/**
- * 取得儲存的 JWT token
- * @returns {string | null}
- */
-export const getToken = () => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-};
-
-/**
- * 儲存 JWT token
- * @param {string} token
- */
-export const setToken = (token) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-};
-
-/**
- * 移除 JWT token
- */
-export const removeToken = () => {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(TOKEN_KEY);
-  }
-};
-
 // 建立 axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // 支援 CORS with credentials
+  withCredentials: true, // Cookie 自動附帶
 });
-
-// Request 攔截器 - 自動加入 Authorization header
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Response 攔截器 - 處理錯誤和解析 ApiResponse
 apiClient.interceptors.response.use(
@@ -82,7 +38,6 @@ apiClient.interceptors.response.use(
 
       // 401 Unauthorized - token 過期或無效
       if (status === 401) {
-        removeToken();
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("auth:logout"));
         }

@@ -2,7 +2,7 @@
 import { ref, computed, provide, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { api } from "./services/api.js";
-import { setGetUserFunction } from "./router/index.js";
+import { setGetUserFunction, setAuthReady } from "./router/index.js";
 import { encodeProductSlug } from "./utils/productSlug.js";
 
 import Navbar from "./components/Navbar.vue";
@@ -67,7 +67,7 @@ const reloadProductsForCurrentRole = async () => {
 
 onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
-  window.addEventListener("auth:logout", handleLogout);
+  window.addEventListener("auth:logout", handleForceLogout);
 
   try {
     isLoading.value = true;
@@ -80,6 +80,9 @@ onMounted(async () => {
       }
     } catch (error) {
       console.log("Auto-login failed, token may be expired");
+    } finally {
+      // \u6a19\u8a18\u8a8d\u8b49\u521d\u59cb\u5316\u5b8c\u6210\uff0c\u8b93\u8def\u7531\u5b88\u885e\u53ef\u4ee5\u9032\u884c\u6b0a\u9650\u9a57\u8b49
+      setAuthReady();
     }
 
     const categoriesData = await api.categories.getAll();
@@ -134,7 +137,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
-  window.removeEventListener("auth:logout", handleLogout);
+  window.removeEventListener("auth:logout", handleForceLogout);
 });
 
 // ============================================
@@ -464,6 +467,13 @@ const handleLogout = async () => {
     router.push("/");
     toast.success("登出成功");
   }
+};
+
+// 處理 401 強制登出（不顯示 Toast）
+const handleForceLogout = () => {
+  user.value = null;
+  reloadProductsForCurrentRole();
+  // 不顯示 Toast，因為這是認證失敗而不是主動登出
 };
 
 // ============================================

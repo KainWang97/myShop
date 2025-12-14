@@ -9,8 +9,6 @@ import {
   apiPut,
   apiPatch,
   apiDelete,
-  setToken,
-  removeToken,
 } from "../utils/apiClient.js";
 
 // ============================================
@@ -652,11 +650,7 @@ export const authApi = {
    */
   async login(data) {
     const backend = await apiPost("/auth/login", data);
-
-    if (backend.token) {
-      setToken(backend.token);
-    }
-
+    // Token 透過 HttpOnly Cookie 自動設定
     return transformUser(backend);
   },
 
@@ -668,11 +662,7 @@ export const authApi = {
    */
   async register(data) {
     const backend = await apiPost("/auth/register", data);
-
-    if (backend.token) {
-      setToken(backend.token);
-    }
-
+    // Token 透過 HttpOnly Cookie 自動設定
     return transformUser(backend);
   },
 
@@ -696,11 +686,8 @@ export const authApi = {
    * @returns {Promise<void>}
    */
   async logout() {
-    try {
-      await apiPost("/auth/logout");
-    } finally {
-      removeToken();
-    }
+    // 後端會清除 HttpOnly Cookie
+    await apiPost("/auth/logout");
   },
 };
 
@@ -905,7 +892,7 @@ export const featuredApi = {
 };
 
 /**
- * 轉換後端 CartItem 為前端格式
+ * 轉換後端 CartItemDTO 為前端格式
  * @param {Object} backend
  * @returns {import('../types.js').CartItem}
  */
@@ -914,12 +901,32 @@ function transformCartItem(backend) {
     throw new Error("CartItem missing variant information");
   }
 
-  const variant = transformVariant(backend.variant);
-  const product = backend.variant.product
-    ? transformProduct(backend.variant.product)
+  const backendVariant = backend.variant;
+  const backendProduct = backendVariant.product;
+
+  // 轉換 variant
+  const variant = {
+    id: String(backendVariant.id),
+    productId: String(backendVariant.productId || ""),
+    color: backendVariant.color || "",
+    size: backendVariant.size || "",
+    stock: backendVariant.stock || 0,
+    skuCode: "",
+  };
+
+  // 轉換 product（從 variant.product 取得）
+  const product = backendProduct
+    ? {
+        id: String(backendProduct.id),
+        categoryId: "",
+        name: backendProduct.name || "",
+        description: "",
+        price: Number(backendProduct.price) || 0,
+        imageUrl: backendProduct.image || "",
+        isListed: true,
+      }
     : {
-        // 使用轉換後的 variant.productId（已經從後端 getProductId() 取得）
-        id: variant.productId || "",
+        id: variant.productId,
         categoryId: "",
         name: "",
         description: "",
